@@ -474,7 +474,9 @@ Rules:
   etc. null if absent.
 - competitors_named: every OTHER accountancy firm named, exact
   names (e.g. "Gorilla Accounting", "GoForma", "Crunch",
-  "QAccounting", "Caroola", "SJD Accountancy", "Brookson").
+  "QAccounting", "Caroola", "SJD Accountancy", "Brookson",
+  "Aardvark Accounting", "Nixon Williams", "The Accountancy
+  Partnership", "Accounting Wise", "More Than Accountants").
 - sentiment: how the brand is characterised. null if absent.
 - products_named_at_all: false if the answer names no specific
   accountancy firms at all (i.e. it's a purely informational
@@ -743,7 +745,7 @@ GROUP BY competitor.value
 ORDER BY times_named DESC;
 ```
 
-This is the slide that sells. Expect it to show Caroola/SJD, Gorilla Accounting, GoForma, Crunch and QAccounting dominating — with Mighty near zero. That comparison, laid out plainly, is the entire pitch.
+This is the slide that sells. Expect it to show Caroola/SJD, Gorilla Accounting, GoForma, Crunch, QAccounting and the wider set (Aardvark, Nixon Williams, TAP, Accounting Wise, More Than Accountants) dominating — with Mighty near zero. That comparison, laid out plainly, is the entire pitch.
 
 ### Citation URL frequency — your Week 2 target list
 
@@ -903,7 +905,9 @@ import requests
 
 SITES = ["mightyaccounting.com", "gorillaaccounting.com",
          "goforma.com", "crunch.co.uk", "qaccounting.com",
-         "caroola.com"]
+         "caroola.com", "aardvarkaccounting.co.uk",
+         "nixonwilliams.com", "theaccountancy.co.uk",
+         "a-wise.co.uk", "morethanaccountants.co.uk"]
 BOTS  = ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended", "CCBot"]
 
 for site in SITES:

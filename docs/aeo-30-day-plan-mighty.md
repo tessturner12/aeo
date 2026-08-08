@@ -1,7 +1,7 @@
 # The AEO Playbook: A 30-Day Plan to Build a Measurement Business
 
 **Target brand:** Mighty Accounting (mightyaccounting.com)
-**Competitor set:** Gorilla Accounting, GoForma, Crunch, QAccounting, Caroola (SJD)
+**Competitor set:** Gorilla Accounting, GoForma, Crunch, QAccounting, Caroola (SJD), Aardvark Accounting, Nixon Williams, TAP (The Accountancy Partnership), Accounting Wise, More Than Accountants
 **Niche:** UK contractor/freelancer limited company accountancy
 
 ---
@@ -207,10 +207,12 @@ Set hard billing caps on every API account before writing any code. Not because 
 Before writing a line of code, prove the opportunity is real. Open ChatGPT, Claude, Perplexity and Gemini. Ask, by hand, in fresh/logged-out sessions where possible:
 
 1. "What's the best accountant for a UK contractor running a limited company?"
-2. "I run a small consultancy through a limited company — who should do my accounts?"
-3. "Best accountant for IT contractors and IR35 2026?"
-4. "I want a fixed-fee accountant for my one-person limited company, not a big impersonal firm — any recommendations?"
+2. "Good UK online accountants?"
+3. "Best accountant for contractors 2026?"
+4. "I want a fixed-fee accountant for my limited company, not a big impersonal firm — any recommendations?"
 5. "What's the easiest way to find a good, affordable accountant for a freelancer's limited company?"
+
+Deliberately kept general rather than IT/IR35-heavy. Mighty's own positioning is "freelancers, contractors and small agencies... providing professional and digital services" — broader than the IT-contractor-and-IR35 niche that Caroola/SJD and Gorilla built their brands on. Testing IR35-specific phrasing here would mostly be testing the competitors' home turf, not Mighty's. IR35 still belongs as one cluster in Day 2's full question set — it's a real, common concern for any Ltd co director — just not over-weighted at the expense of the broader freelancer/professional-services territory where Mighty can actually compete.
 
 For each, write down: **which firms got named, in what order, and which URLs got cited.**
 
