@@ -1,5 +1,9 @@
 # AEO
 
+## Links
+
+- claude.ai Project (chat workspace): https://claude.ai/project/019fe23f-91b4-7286-ae2c-e365cd5f4115
+
 ## Structure
 
 - `log.md` — daily journal, one entry per day
