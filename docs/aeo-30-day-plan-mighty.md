@@ -70,9 +70,11 @@ Not content. Not schema markup. Not an audit PDF.
 
 **You are selling a measurement instrument and the honest answer it produces.**
 
-The pitch to Mighty: *"Right now, when contractors ask AI which accountant to use, you don't come up and four of your competitors do. I've measured it — across four AI platforms, across sixty phrasings of the question, five times each, with error bars. Now let's change something on half of it, hold the other half as a control, and find out what actually moves. I'll tell you honestly if nothing does."*
+The pitch to Mighty: *"Right now, when contractors ask AI which accountant to use, you don't come up and four of your competitors do. I've measured it — across four AI platforms, across sixty-odd phrasings of the question, five times each, with error bars. Now let's change something on half of it, hold the other half as a control, and find out what actually moves. I'll tell you honestly if nothing does."*
 
 That last sentence is the whole business.
+
+**A note on how this actually gets said out loud, not just what it says.** This paragraph describes the *product* — what the instrument does and why it's different. It is deliberately not the actual opening line to Mighty. Cold-approaching a stranger with "I've been measuring you" reads as a scam opener more often than it reads as flattering, however good the methodology behind it — see the Day 30+ section at the end of this plan for the actual, transparent, no-ask way this gets shared. Also note: "four AI platforms" is the target, reached in two phases — three (Perplexity, Claude, ChatGPT) are what the automated rig runs from Day 3, with Gemini added as a fast-follow once that three-surface rig is proven reliable, before the real before/after comparison. Don't say "four platforms" out loud until Gemini is actually in.
 
 ## Why "I'll tell you honestly if nothing does" is the moat
 
@@ -90,6 +92,10 @@ Meanwhile the market is producing confident case studies at volume. Smith flags 
 The fix for the first one — and it's the fix that defines your entire offer — is a **control group.** Change half, leave half alone, compare the two. If both went up, the market went up and you did nothing.
 
 Nobody in this market is doing that. You will. That's the business.
+
+## One honest caveat to state up front, every time
+
+The rig measures answers from each platform's API — Perplexity's `sonar`, Claude with the `web_search` tool, ChatGPT's search-preview model, and (once added) Gemini's Search grounding. That's a real, precise measurement of a real thing. It is not automatically identical to what a person sees opening the ChatGPT app on their phone — different search-triggering thresholds, no personalization, no memory. If Mighty's own founder checks by hand and gets a different answer than the rig reports, the instinct is "your numbers are wrong," not "interesting methodological nuance." Say the caveat first, in the first sentence of any write-up — "measured via each platform's API, which can differ from what you'd see in the consumer app" — rather than let someone else discover the gap and draw their own conclusion about your rigor.
 
 ## Your specific unfair advantage
 
@@ -116,7 +122,11 @@ Directionally, from published sources — every one of which is content marketin
 
 The spread is absurd — some agencies quote $1,000 while others demand $15,000 for arguably the same work — and at least one industry guide states plainly that a chunk of the "AEO" tier is traditional SEO shops that relabelled their pricing page. Nobody publishes rate cards. The market hasn't settled.
 
-**A separate, useful data point for this specific niche:** there's already a small cottage industry of agencies (GetVisus, Renownly, Tramwai and others) selling "AI visibility for accountants" specifically, and they describe the UK accountancy sector as having almost no AI visibility strategy anywhere — the opportunity is described as "almost entirely uncontested." That's a genuine tailwind: you're not explaining a novel idea to this niche, you're arriving slightly ahead of an already-forming market.
+**Corrected, as of independent verification: this niche is not uncontested — it's already got at least seven active players specifically selling "AI visibility for UK accountants."** Renownly has published first-party research auditing 93 UK firms (28 of them IR35/contractor specialists specifically — the identical slice this project targets). GetVisus runs a free 60-second audit for accountants. TendorAI has per-city landing pages and a £299/mo tier, explicitly covering ChatGPT, Gemini, Claude, Perplexity and Copilot. MarGen, Tenacious Marketing, and SearchScore (which audited 1,038 UK accountancy firms) are all live and active too. One of them — myaivisibility.co.uk — already publishes a sample report for a Leeds IR35/contractor accountant, about as close to Mighty as a competitor gets. ("Tramwai" could not be verified as a real operating company under any spelling and should be treated as unconfirmed.)
+
+The "almost entirely uncontested" line above was, on inspection, sourced from GetVisus's own marketing copy — a competitor's claim about their own market, repeated as fact. Worth knowing that's where it came from.
+
+**Here's the good news inside that correction:** every one of those seven sells a snapshot — a score, a checklist, a one-off audit. Not one of them runs a controlled experiment, splits topics into test/control, or reports a confidence interval. The real differentiator was never "nobody's here." It's **"everybody here is selling a photograph; you're the only one offering a video."** That's a sharper, truer, more specific pitch than "uncontested" ever was, and unlike "uncontested," it survives someone actually checking.
 
 That's *good* for someone arriving with an actual instrument.
 
@@ -275,9 +285,38 @@ Likely clusters for Mighty:
 
 This step will kill 30-40% of your list — informational questions like "how do I register a limited company" or "what is IR35" will produce excellent, helpful, entirely firm-free answers. That's the step working correctly.
 
-**Deliverable:** `questions.csv` — `id, text, topic, tier, is_product, notes` (schema and code covered in the appendix, when we write it).
+**Deliverable:** `questions.csv` — `id, text, topic, tier, is_product, cohort, notes` (schema and code covered in the appendix).
+
+### Day 2 results (actual)
+
+Ran the full method: brain dump → Claude expansion → clustering → tiering → the scripted Step 5 filter (via `step5_product_filter.py`, a real Perplexity call + a Haiku classifier per question, not a manual spot-check).
+
+- **68 questions across 8 clusters**, matching the plan's likely-clusters list above, with one addition: VAT started as its own seed (it took up more of the real brain dump than any other single topic) and was folded into `tax_efficiency` at Step 3 rather than promoted to a 9th cluster.
+- **Step 5 filter result: 36 kept (`is_product = TRUE`), 32 deleted (`FALSE`)** — close to the 30-40% loss the plan predicted, but wildly uneven across clusters, not a flat haircut:
+
+| Cluster | Kept | Deleted | Total |
+|---|---|---|---|
+| fixed_fee_positioning | 9 | 6 | 15 |
+| general_recommendation | 9 | 1 | 10 |
+| freelancer_agency | 4 | 1 | 5 |
+| switching_accountants | 5 | 2 | 7 |
+| ir35_compliance | 4 | 4 | 8 |
+| software_compatibility | 3 | 3 | 6 |
+| **tax_efficiency** | **2** | 8 | 10 |
+| **new_company_setup** | **0** | 7 | 7 |
+
+- **`new_company_setup` is a total wipeout — 0 of 7 survived.** Matches the plan's own prediction exactly ("do I need an accountant" questions are pure informational, no firm ever gets named). Not a bug — the filter working as designed. Practical effect: the design is now **7 usable clusters, not 8** — this one simply won't appear once cohort assignment runs.
+- **`tax_efficiency` is thin — 2 of 10.** Not zero, but thin enough that N=5 runs on 2 questions gives a tiny, high-variance cell. Worth deliberately weighting remaining run budget toward the clusters that can actually support a claim (`fixed_fee_positioning` at 9, `general_recommendation` at 9) rather than spreading runs evenly across clusters that structurally can't carry one.
+- **Anchoring bug caught and fixed:** phrasings without an explicit UK/limited-company anchor (`freelancer_agency`, and part of `tax_efficiency`) were pulling in unrelated or US-based results in spot-checks. Every `freelancer_agency` row and the dividend/VAT rows in `tax_efficiency` were rewritten with explicit "uk"/"limited company" anchoring — the other clusters anchor naturally via "IR35," "contractor," or "limited company" already being in the phrasing, so this only bit the two clusters that didn't.
+- **A follow-up N=3 majority-vote recheck** (`step5_recheck.py`) was run on four clusters that looked unreliable on a single draw (`ir35_compliance`, `switching_accountants`, `tax_efficiency`, `fixed_fee_positioning`), with every raw Perplexity answer logged to `step5_recheck_log.jsonl` rather than just trusting the TRUE/FALSE tag.
+
+**Verdict: go**, with the effective design now **7 clusters (not 8), 36 product questions (not ~60), skewed toward `fixed_fee_positioning` and `general_recommendation` as the clusters with real statistical weight.** This is a smaller, more honest N than originally scoped — the power analysis in Appendix K will need to be read carefully against it, and any published result should show topic-composition sensitivity openly rather than imply more certainty than a 7-unit randomization can support.
 
 ---
+
+## Timeline reality check
+
+The Day-N labels throughout this plan (and the appendix) mark **sequence, not literal calendar days.** Realistic elapsed time for this build, done part-time, as a first Python project, with unattended infrastructure: **6-8 weeks, not 30 days.** Treat that as the normal baseline, not a sign anything's going wrong. Days 3-5 in particular (writing `rig.py`/`parser.py`/`schema.sql` from scratch, debugging three different SDKs' response shapes) and Day 15 (provisioning and hardening a server, getting cron reliable) are each individually multi-day tasks the first time through — budget accordingly rather than measuring progress against the compressed labels.
 
 *The rest of this plan — Days 3-5 building the rig, Days 6-7 baseline, Week 2's experiment design, Week 3's run, Week 4's analysis and packaging, the failure-modes table — carries over from the general version unchanged in structure. The only substitutions needed throughout are:*
 
@@ -286,4 +325,37 @@ This step will kill 30-40% of your list — informational questions like "how do
 - *Question clusters: auto-apply/swipe-to-apply/mobile job hunting → **IR35, fixed-fee positioning, switching accountants, dividend/tax efficiency, new company setup***
 - *Parser brand-matching: "Sorce" vs "source" ambiguity → **"Mighty" vs the common adjective "mighty" — same category of problem, needs the same Day 5 parser validation, matching on "Mighty Accounting" or "Mighty" in an accountancy-firm context rather than the bare word***
 
-*Full Days 3-30 detail plus all runnable code lives in the companion appendix — ready to write next, once you've been through Days 1-2 with real Mighty-specific data in hand.*
+*Full Days 3-30 detail plus all runnable code lives in the companion appendix.*
+
+---
+
+## Day 30+ — turning the artifact into money
+
+*The original scope stopped at "analysis and packaging." It never actually said what happens after — that gap gets closed here, deliberately staged with kill criteria at each step, so time doesn't get sunk into a direction with no real signal.*
+
+### Ranked paths, by realistic likelihood of payoff
+
+1. **Content/audience monetization** — highest probability, lowest risk. The case study (positive *or* null result) is strong content for an audience that already exists, with no dependency on Mighty saying yes to anything.
+2. **Portfolio/skills leverage** — high probability, indirect money. "SQL/BI depth + now Python/APIs + a real controlled experiment" is a legitimate freelance/contract signal on its own, independent of AEO as a niche.
+3. **Productized tool, not bespoke consulting** — moderate probability, better economics than direct consulting. The rig scales (new brand = config change, not a rebuild) in a way the seven manual-audit competitors above don't.
+4. **Direct retainer sales to Mighty or similar bootstrapped firms** — lowest probability. The original plan's core bet. Weak first-customer profile, real competitors already in the space, no evidence the free-case-study-to-retainer path converts for a first-time solo operator.
+5. **Sell to agencies instead of SMBs directly** — worth keeping in reserve. Different buyer (existing budget, existing client relationships), same tool. A bigger pivot, not a Day 30 move.
+
+### Concrete staged plan
+
+**Ship the case study as content first, no ask attached.** Post it, framed as "I built a tool to measure this, here's what I found." This alone captures most of paths 1 and 2 and doesn't require Mighty's cooperation or response.
+
+**Then, share it with Mighty transparently — with no pitch.** Not "I've been measuring you." Something closer to: "I did this because I was curious and you're a great example for content I make about AI/data — here's what I found, no ask." Only if they respond warmly, mention — low-pressure — that you're exploring whether this could become a small recurring report, and gauge genuine interest. Don't pitch a retainer cold.
+
+**Test real demand before building anything else.** Draft a one-page mockup of a recurring "AI Visibility Report" and show it to 5-10 small professional-services businesses — not just accountants; widen to solicitors, financial advisers, other trust-heavy comparison-driven niches, to avoid depending on any single vertical or on Mighty specifically. The question being tested: would anyone actually pay something like £49-99/month for this, recurring? This is a demand test, not a build commitment.
+
+**Branch on the signal.** If several prospects show real interest — willing to pay a deposit, or clearly say "yes I'd pay for that" — build the minimal productized version: parameterize the rig to take brand, competitor list, and niche as config; automate report generation; start with one paying pilot before generalizing. If there's no real signal — polite interest but nobody willing to commit, or no replies at all — stop building. Bank the case study as portfolio and content value (a complete, successful outcome on its own terms) and redirect full attention back to content.
+
+### Kill criteria
+
+Stop pursuing the productized/consulting path — fall back fully to content + portfolio value — if:
+- Zero of the 5-10 demand-test prospects show even mild interest, or
+- Nobody is willing to pay anything, even a small deposit, to move forward, or
+- Mighty's own response to the transparent, no-ask share is cold or negative — worth taking seriously given how small and networked this niche is.
+
+None of these are failure of the *project*. The content and skills value is banked regardless — they're failure of *this specific monetization path*, which is exactly the distinction the original scope never drew.
