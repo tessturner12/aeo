@@ -12,6 +12,7 @@ desktop.ini
 .env
 .env.*
 !.env.example
+admin/
 
 # Logs
 *.log
