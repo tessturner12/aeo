@@ -27,3 +27,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Database — regenerable from schema.sql + questions.csv; source of truth
+# moves to the Hetzner box later, not git, once the rig is unattended
+*.db
