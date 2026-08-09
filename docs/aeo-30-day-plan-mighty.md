@@ -1,8 +1,10 @@
 # The AEO Playbook: A 30-Day Plan to Build a Measurement Business
 
 **Target brand:** Mighty Accounting (mightyaccounting.com)
-**Competitor set:** Gorilla Accounting, GoForma, Crunch, QAccounting, Caroola (SJD), Aardvark Accounting, Nixon Williams, TAP (The Accountancy Partnership), Accounting Wise, More Than Accountants
+**Competitor set:** Gorilla Accounting, GoForma, Crunch, QAccounting, Caroola (SJD), Aardvark Accounting, Nixon Williams, TAP (The Accountancy Partnership), Accounting Wise, More Than Accountants, SG Accounting, InTouch Accounting, Ember, Mazuma
 **Niche:** UK contractor/freelancer limited company accountancy
+
+*Competitor set updated after Day 1 manual verification (see Day 1 section below) — SG Accounting, InTouch Accounting, Ember and Mazuma were added after outperforming several originally-listed firms in real AI answers; QAccounting remains listed but showed minimal presence (1 mention across 40 answers) and should be watched rather than assumed dominant.*
 
 ---
 
@@ -139,7 +141,11 @@ UK contractor accountancy: yes. Every roundup and directory names specific firms
 **2. Is there headroom?**
 This kills most candidates. Caroola/SJD (a merger of two of the biggest legacy contractor accountancy brands) appears in nearly every roundup — saturated, no room to move, you'd be measuring a ceiling. Same with Crunch and GoForma, both of which show up repeatedly across ContractorUK, UmbrellaCompany, and LimitedCompanyHelp directories.
 
-Mighty is **absent from the major roundup and directory lists** despite being a real, well-reviewed, multi-year operating firm. That's a floor with room above it. That's an experiment.
+Mighty is **largely absent from the major roundup and directory lists** despite being a real, well-reviewed, multi-year operating firm. Day 1's manual check refined this: Mighty isn't a flat zero — it appears in 3 of 5 test questions on ChatGPT, framed favourably ("best value," a top-3 position in a ranked shortlist) — but it's invisible on Claude, Perplexity, and Gemini across all 5 questions, and its visibility on ChatGPT rests almost entirely on a single Reddit thread being cited repeatedly, not on broad-based citation.
+
+Notably, it was also absent from the one question phrased closest to its own positioning ("fixed-fee accountant, not a big impersonal firm"). Checked directly against Mighty's own site: the phrase "fixed fee" is present and prominent — it's the exact wording in Mighty's Google meta description ("Simple Software, Expert Accountants, One Fixed Fee") and on the pricing page ("One fixed fee, so we start with a conversation, not a quote"). So this isn't a case of Mighty using different terminology altogether. It's more precise than that: the homepage hero — the page's primary framing, what a visitor (or a page-summarising model) sees first — leads with "£60pm + VAT. No hidden costs," not with "fixed fee." The phrase is real but secondary, sitting in the meta tag and the pricing detail rather than the primary pitch.
+
+Given mightyaccounting.com was cited exactly once across all 40 Day 1 answers (via a Reddit thread, not its own page), the dominant explanation remains the earned-citation gap, not the on-page copy — the AI mostly isn't reading Mighty's pages at all for this query, regardless of what they say. The hero-vs-metadata framing distinction is a secondary, genuinely testable factor (worth keeping the `questions.csv` phrasing variants for), not the primary driver. Either way: thin, single-source, single-platform visibility with a floor well below where a firm this well-reviewed should sit. That's a floor with room above it. That's an experiment.
 
 **3. Is it clean enough to publish?**
 Mighty: bootstrapped, customer-funded, no VC. Run by named founders (Mark and James) with the CEO's personal email and mobile number publicly listed on the "About" page, explicitly inviting contact. Positive reviews, no BBB-style horror stories, most new clients arrive via referral — which is itself evidence the underlying service is good; they simply haven't translated word-of-mouth trust into AI-answer visibility.
@@ -207,12 +213,10 @@ Set hard billing caps on every API account before writing any code. Not because 
 Before writing a line of code, prove the opportunity is real. Open ChatGPT, Claude, Perplexity and Gemini. Ask, by hand, in fresh/logged-out sessions where possible:
 
 1. "What's the best accountant for a UK contractor running a limited company?"
-2. "Good UK online accountants?"
-3. "Best accountant for contractors 2026?"
-4. "I want a fixed-fee accountant for my limited company, not a big impersonal firm — any recommendations?"
+2. "I run a small consultancy through a limited company — who should do my accounts?"
+3. "Best accountant for IT contractors and IR35 2026?"
+4. "I want a fixed-fee accountant for my one-person limited company, not a big impersonal firm — any recommendations?"
 5. "What's the easiest way to find a good, affordable accountant for a freelancer's limited company?"
-
-Deliberately kept general rather than IT/IR35-heavy. Mighty's own positioning is "freelancers, contractors and small agencies... providing professional and digital services" — broader than the IT-contractor-and-IR35 niche that Caroola/SJD and Gorilla built their brands on. Testing IR35-specific phrasing here would mostly be testing the competitors' home turf, not Mighty's. IR35 still belongs as one cluster in Day 2's full question set — it's a real, common concern for any Ltd co director — just not over-weighted at the expense of the broader freelancer/professional-services territory where Mighty can actually compete.
 
 For each, write down: **which firms got named, in what order, and which URLs got cited.**
 
@@ -224,6 +228,19 @@ You're checking three things:
 Also: **ask each question twice.** You will get different answers. That's not a bug — it's the single most important property of this entire domain, and it's why Day 3 exists.
 
 **Deliverable:** a page of notes. Go/no-go decision made explicitly.
+
+### Day 1 results (actual)
+
+Ran all 5 questions across ChatGPT, Claude, Perplexity, Gemini, each asked twice (40 answers total).
+
+- **Category verified — go.** Named firms appear across the large majority of the 40 answers.
+- **Mighty appears in 3 of 5 questions, ChatGPT only** (0 mentions on Claude, Perplexity, Gemini across all 5). Where it appears, framing is positive — "best value," a top-3 position in a ranked shortlist of 6 firms. Visibility rests almost entirely on one Reddit thread (`r/ContractorUK`) being cited repeatedly, not on broad-based citation.
+- **Mighty is absent from Q4** — the fixed-fee/"not a big impersonal firm" question, its own supposed natural-home positioning. Checked against Mighty's own site: "fixed fee" is real and prominent — it's in the Google meta description and the pricing page copy — so this isn't a case of Mighty avoiding the phrase entirely. The nuance: the homepage hero leads with "£60pm + VAT. No hidden costs," not "fixed fee" — the phrase is secondary framing, not primary. Given mightyaccounting.com was cited only once across all 40 answers, the earned-citation gap remains the dominant explanation, with hero-vs-metadata framing as a secondary, testable factor. Added phrasings to `questions.csv` to test this directly (see `fixed_fee_positioning` cluster).
+- **mightyaccounting.com was cited once** across all 40 answers, 672 total URLs, 130 unique domains.
+- **Citation landscape:** crunch.co.uk (55), reddit.com (52), gorillaaccounting.com (33), forums.contractoruk.com (13), limitedcompanyhelp.com (12), umbrellacompany.com (10). Reddit + ContractorUK forums combined (65) outweighed any single curated directory — worth treating forum threads as a citation target alongside directories, not instead of them.
+- **Competitor set correction:** SG Accounting (8 mentions), Ember (10), Nixon Williams (10), and Mazuma (8) all outranked QAccounting (1 mention), despite QAccounting being in the original tracked set. Competitor set above updated accordingly.
+
+**Verdict: go**, with the pitch reframed from "Mighty is invisible" to "Mighty has thin, single-source, single-platform visibility, and is invisible on its own strongest positioning" — a sharper, more precise story than blanket absence.
 
 ## Day 2: Question research (4-6 hours, no code)
 

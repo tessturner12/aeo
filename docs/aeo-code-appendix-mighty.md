@@ -283,6 +283,132 @@ questions = questions[questions.is_product == True]  # the filter
 print(f"{len(questions)} product questions across {questions.topic.nunique()} topics")
 ```
 
+### Step 5, scripted (`step5_product_filter.py`)
+
+Added after a manual spot-check (web search, not Perplexity, so treat as
+directional) surfaced two things worth fixing before running this for
+real:
+
+1. `new_company_setup`-style "do I need an accountant" questions mostly
+   return pure informational content, no named firms — matches the
+   plan's own worked example (`q003` in the sample rows above). Expect
+   this cluster to lose the most rows.
+2. `freelancer_agency` phrasings without an explicit UK/limited-company
+   anchor pulled entirely US-based CPA firms in the spot-check. All 5
+   rows in that cluster were rewritten to include "uk" and "limited
+   company" — every other cluster naturally anchors via "IR35",
+   "limited company", or "contractor", but authored phrasings need it
+   added explicitly.
+
+This script runs the real filter via the Perplexity API once Appendix
+B's smoke test passes, using an LLM call (not regex — same reasoning
+as Appendix G) to judge whether a specific firm got named. It only
+touches rows where `is_product` is blank or `BORDERLINE`, so manually
+spot-checked rows are left alone, and it saves after every row so a
+crash mid-run doesn't lose progress.
+
+```python
+# step5_product_filter.py
+import os, csv, time, random
+import requests
+from dotenv import load_dotenv
+from anthropic import Anthropic
+
+load_dotenv()
+
+CSV_PATH = "questions.csv"
+anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+FILTER_PROMPT = """You are checking whether an AI assistant's answer
+names any SPECIFIC accountancy firm or accounting company (a proper
+noun business name — e.g. "Crunch", "Gorilla Accounting", "Mighty
+Accounting"), as opposed to giving purely generic/informational advice
+with no named providers.
+
+Rules:
+- Software platforms (Xero, FreeAgent, Pandle, QuickBooks) do NOT
+  count as accountancy firms on their own.
+- Generic advice ("hire a qualified accountant", "look for someone
+  ACCA-certified") with no actual named business does NOT count.
+- A directory or comparison site listing named firms DOES count.
+- If in doubt, answer TRUE only if you could point to an actual firm
+  name in the text.
+
+Answer with exactly one word: TRUE or FALSE.
+
+ANSWER TO CHECK:
+{answer}"""
+
+
+def ask_perplexity(question):
+    r = requests.post(
+        "https://api.perplexity.ai/chat/completions",
+        headers={"Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}"},
+        json={
+            "model": "sonar",
+            "messages": [{"role": "user", "content": question}],
+        },
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"]
+
+
+def is_product_question(answer_text):
+    msg = anthropic_client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=10,
+        messages=[{
+            "role": "user",
+            "content": FILTER_PROMPT.format(answer=answer_text),
+        }],
+    )
+    raw = msg.content[0].text.strip().upper()
+    return "TRUE" in raw
+
+
+def run_filter():
+    with open(CSV_PATH, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+
+    fieldnames = list(rows[0].keys())
+    to_check = [r for r in rows if not r["is_product"] or r["is_product"] == "BORDERLINE"]
+
+    print(f"{len(rows)} total questions, {len(to_check)} need checking")
+
+    for i, row in enumerate(to_check, 1):
+        try:
+            answer = ask_perplexity(row["text"])
+            result = is_product_question(answer)
+            row["is_product"] = "TRUE" if result else "FALSE"
+            note = f"scripted Step 5 check, {time.strftime('%Y-%m-%d')}"
+            row["notes"] = (row["notes"] + " | " + note).strip(" |") if row["notes"] else note
+            print(f"[{i}/{len(to_check)}] {row['id']}: {row['is_product']} — {row['text'][:60]}")
+        except Exception as e:
+            print(f"[{i}/{len(to_check)}] {row['id']}: ERROR — {e}")
+            row["is_product"] = ""
+
+        # save after every row so a crash doesn't lose progress
+        with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
+        time.sleep(random.uniform(0.5, 1.5))
+
+    kept = sum(1 for r in rows if r["is_product"] == "TRUE")
+    deleted = sum(1 for r in rows if r["is_product"] == "FALSE")
+    print(f"\nDone. {kept} product questions kept, {deleted} flagged for deletion.")
+    print("Review the FALSE rows before deleting — spot-check a handful first.")
+
+
+if __name__ == "__main__":
+    run_filter()
+```
+
+Drop this in your `aeo-rig` folder alongside `questions.csv` and run
+`python step5_product_filter.py` once your Perplexity key is live.
+
 ---
 
 ## Appendix E: Python Primer
@@ -474,9 +600,7 @@ Rules:
   etc. null if absent.
 - competitors_named: every OTHER accountancy firm named, exact
   names (e.g. "Gorilla Accounting", "GoForma", "Crunch",
-  "QAccounting", "Caroola", "SJD Accountancy", "Brookson",
-  "Aardvark Accounting", "Nixon Williams", "The Accountancy
-  Partnership", "Accounting Wise", "More Than Accountants").
+  "QAccounting", "Caroola", "SJD Accountancy", "Brookson").
 - sentiment: how the brand is characterised. null if absent.
 - products_named_at_all: false if the answer names no specific
   accountancy firms at all (i.e. it's a purely informational
@@ -745,7 +869,7 @@ GROUP BY competitor.value
 ORDER BY times_named DESC;
 ```
 
-This is the slide that sells. Expect it to show Caroola/SJD, Gorilla Accounting, GoForma, Crunch, QAccounting and the wider set (Aardvark, Nixon Williams, TAP, Accounting Wise, More Than Accountants) dominating — with Mighty near zero. That comparison, laid out plainly, is the entire pitch.
+This is the slide that sells. Based on Day 1's manual check, expect Crunch, Gorilla Accounting, Ember, Nixon Williams, GoForma, SG Accounting and Mazuma to dominate — QAccounting, despite being an originally-assumed major competitor, barely showed up (1 mention across 40 Day 1 answers) and shouldn't be assumed dominant without the rig's own data confirming it. Mighty should sit near zero on Claude/Perplexity/Gemini and thin-but-present on ChatGPT specifically. That comparison, laid out plainly, is the entire pitch.
 
 ### Citation URL frequency — your Week 2 target list
 
@@ -905,9 +1029,10 @@ import requests
 
 SITES = ["mightyaccounting.com", "gorillaaccounting.com",
          "goforma.com", "crunch.co.uk", "qaccounting.com",
-         "caroola.com", "aardvarkaccounting.co.uk",
-         "nixonwilliams.com", "theaccountancy.co.uk",
-         "a-wise.co.uk", "morethanaccountants.co.uk"]
+         "caroola.com", "sg-accounting.co.uk", "intouchaccounting.com",
+         "ember.co", "mazumamoney.co.uk"]
+# sg-accounting.co.uk, intouchaccounting.com, ember.co, mazumamoney.co.uk added
+# after Day 1 manual check — these outranked qaccounting.com in real AI answers
 BOTS  = ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended", "CCBot"]
 
 for site in SITES:

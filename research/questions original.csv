@@ -23,7 +23,7 @@ q021,"sick of surprise invoices from my accountant, is there a fixed fee option"
 q022,fixed fee accountant no hidden costs contractor,fixed_fee_positioning,mid,,,
 q023,"accountant that does one flat monthly fee, everything included",fixed_fee_positioning,long,,,
 q024,"looking for predictable accountant costs, hate surprise bills",fixed_fee_positioning,long,,,
-q025,"small firm fixed fee accountant, not a big impersonal agency",fixed_fee_positioning,mid,TRUE,,"verified from Day 1 real data - matches Day 1 Q4 almost exactly, firms named (just not Mighty)"
+q025,"small firm fixed fee accountant, not a big impersonal agency",fixed_fee_positioning,mid,,,
 q026,"accountant that actually understands one person consultancies, fixed monthly cost",fixed_fee_positioning,long,,,
 q027,"fixed fee accountant for a one person ltd co, no add on charges",fixed_fee_positioning,long,,,
 q028,monthly accountant subscription that includes bookkeeping and tax return,fixed_fee_positioning,mid,,,
@@ -44,24 +44,24 @@ q042,accountant who can advise whether vat registration is worth it for a small 
 q043,accountant to explain flat rate vs standard vat for a consultancy,tax_efficiency,mid,,,
 q044,"best accountant for vat advice, small limited company",tax_efficiency,mid,,,
 q045,accountant who can tell me if i should voluntarily register for vat,tax_efficiency,long,,,
-q046,accountant that works with pandle for a small limited company,software_compatibility,mid,TRUE,,"spot-checked via web search 2026-08 - Accounting Wise, GoForma, others named directly"
+q046,accountant that works with pandle for a small limited company,software_compatibility,mid,,,
 q047,accountant familiar with pandle bookkeeping software,software_compatibility,mid,,,
 q048,"which accounting software do most contractor accountants prefer, xero or freeagent",software_compatibility,long,,,
 q049,accountant that supports freeagent for limited company contractors,software_compatibility,mid,,,
 q050,does my accountant need me to use a specific software like xero,software_compatibility,long,,,
 q051,best accounting software an accountant will actually work with for a small ltd co,software_compatibility,long,,,
-q052,do i need an accountant for a limited company,new_company_setup,head,FALSE,,"spot-checked via web search 2026-08 - purely informational, no firms named, matches plan's own delete-example pattern"
+q052,do i need an accountant for a limited company,new_company_setup,head,,,
 q053,can i run a limited company without an accountant,new_company_setup,head,,,
-q054,is it possible to not have an accountant as a first time contractor,new_company_setup,mid,BORDERLINE,,"spot-checked via web search 2026-08 - mostly informational, one source (itcontracting.com) embeds a firm list - needs real Perplexity check to resolve"
+q054,is it possible to not have an accountant as a first time contractor,new_company_setup,mid,,,
 q055,do i actually need an accountant for a short 3 month contract,new_company_setup,long,,,
 q056,"first time setting up a ltd company, do i need an accountant from day one",new_company_setup,mid,,,
 q057,"new contractor here, is an accountant essential or can i manage myself",new_company_setup,long,,,
 q058,"first time director, should i get an accountant straight away",new_company_setup,mid,,,
-q059,"accountant for a small uk digital agency, not just solo contractors, limited company",freelancer_agency,mid,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q060,"best uk accountant for a two or three person freelance agency, limited company",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q061,uk accountant that handles payroll for a small limited company agency with a couple of employees,freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q062,"looking for a uk accountant who works with small creative agencies, limited company, not just sole traders",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q063,"uk accountant for a growing freelance collective limited company, more than one director",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
+q059,"accountant for a small digital agency, not just solo contractors",freelancer_agency,mid,,,"authored to fill gap - not from personal experience, weight accordingly"
+q060,best accountant for a two or three person freelance agency,freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly"
+q061,accountant that handles payroll for a small agency with a couple of employees,freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly"
+q062,"looking for an accountant who works with small creative agencies, not just sole traders",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly"
+q063,"accountant for a growing freelance collective, more than one director",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly"
 q064,accountant with a simple monthly plan for a small limited company,fixed_fee_positioning,mid,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
 q065,accountant that offers a yearly plan instead of hourly billing,fixed_fee_positioning,long,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
 q066,"looking for an accountant with an annual plan, not per-task charges",fixed_fee_positioning,long,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
