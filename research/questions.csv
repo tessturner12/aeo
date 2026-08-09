@@ -1,69 +1,69 @@
 id,text,topic,tier,is_product,cohort,notes
-q001,cheapest monthly online accountants uk,general_recommendation,mid,,,
-q002,what's the cheapest accountant i can get for a ltd company,general_recommendation,mid,,,
-q003,anyone know a cheap online accountant for a one person ltd co,general_recommendation,long,,,
-q004,is there a cheap but decent accountant for freelancers,general_recommendation,mid,,,
-q005,good value accountants for small uk companies,general_recommendation,head,,,
-q006,affordable accountant for a small uk limited company,general_recommendation,head,,,
-q007,best london accountants for contractors,general_recommendation,mid,,,
-q008,cheapest london accountants for freelancers,general_recommendation,mid,,,
-q009,does it matter if my accountant isn't based in london,general_recommendation,long,,,
-q010,accountant recommendations london freelancer limited company,general_recommendation,mid,,,
-q011,ir35 accountants,ir35_compliance,head,,,
-q012,ir35 compliant accountant for contractors,ir35_compliance,mid,,,
-q013,accountant for it contractor ir35 inside vs outside,ir35_compliance,long,,,
-q014,best accountant for someone operating outside ir35,ir35_compliance,mid,,,
-q015,do i need a specialist ir35 accountant or will any ltd company accountant do,ir35_compliance,long,,,
-q016,anyone recommend an accountant who actually knows ir35 inside out,ir35_compliance,long,,,
-q017,ir35 accountant recommendations 2026,ir35_compliance,mid,,,
-q018,need an accountant who won't get my ir35 status wrong,ir35_compliance,long,,,
-q019,is pay monthly or one off accountant better,fixed_fee_positioning,mid,,,
-q020,fixed monthly fee vs one off accountant fee which is better value,fixed_fee_positioning,mid,,,
-q021,"sick of surprise invoices from my accountant, is there a fixed fee option",fixed_fee_positioning,long,,,
-q022,fixed fee accountant no hidden costs contractor,fixed_fee_positioning,mid,,,
-q023,"accountant that does one flat monthly fee, everything included",fixed_fee_positioning,long,,,
-q024,"looking for predictable accountant costs, hate surprise bills",fixed_fee_positioning,long,,,
-q025,"small firm fixed fee accountant, not a big impersonal agency",fixed_fee_positioning,mid,TRUE,,"verified from Day 1 real data - matches Day 1 Q4 almost exactly, firms named (just not Mighty)"
-q026,"accountant that actually understands one person consultancies, fixed monthly cost",fixed_fee_positioning,long,,,
-q027,"fixed fee accountant for a one person ltd co, no add on charges",fixed_fee_positioning,long,,,
-q028,monthly accountant subscription that includes bookkeeping and tax return,fixed_fee_positioning,mid,,,
-q029,switching accountants mid tax year limited company,switching_accountants,mid,,,
-q030,"sick of my accountant never replying to emails, anyone recommend someone actually good for a one person ltd co",switching_accountants,long,,,
-q031,"my current accountant keeps making mistakes, how do i find a better one",switching_accountants,long,,,
-q032,good accountants for contractors switching from a big impersonal firm,switching_accountants,mid,,,
-q033,"looking to leave my current accountant, need someone more responsive",switching_accountants,long,,,
-q034,best accountants for people fed up with slow or unresponsive current provider,switching_accountants,long,,,
-q035,"recommend an accountant, leaving my current one after a bad experience",switching_accountants,long,,,
-q036,accountant that can advise on dividends vs salary and how much i can safely take out,tax_efficiency,long,,,
-q037,accountant to help figure out retained profit rules for dividends,tax_efficiency,long,,,
-q038,best accountant for advice on paying myself dividends vs salary,tax_efficiency,mid,,,
-q039,need an accountant who explains director's loan account rules clearly,tax_efficiency,long,,,
-q040,who can advise on the right mix of salary and dividends for a one person company,tax_efficiency,long,,,
-q041,who's a good accountant for figuring out how much dividend tax i'll owe at year end,tax_efficiency,long,,,
-q042,accountant who can advise whether vat registration is worth it for a small limited company,tax_efficiency,mid,,,
-q043,accountant to explain flat rate vs standard vat for a consultancy,tax_efficiency,mid,,,
-q044,"best accountant for vat advice, small limited company",tax_efficiency,mid,,,
-q045,accountant who can tell me if i should voluntarily register for vat,tax_efficiency,long,,,
+q001,cheapest monthly online accountants uk,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q002,what's the cheapest accountant i can get for a ltd company,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q003,anyone know a cheap online accountant for a one person ltd co,general_recommendation,long,TRUE,,"scripted Step 5 check, 2026-08-09"
+q004,is there a cheap but decent accountant for freelancers,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q005,good value accountants for small uk companies,general_recommendation,head,TRUE,,"scripted Step 5 check, 2026-08-09"
+q006,affordable accountant for a small uk limited company,general_recommendation,head,TRUE,,"scripted Step 5 check, 2026-08-09"
+q007,best london accountants for contractors,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q008,cheapest london accountants for freelancers,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q009,does it matter if my accountant isn't based in london,general_recommendation,long,FALSE,,"scripted Step 5 check, 2026-08-09"
+q010,accountant recommendations london freelancer limited company,general_recommendation,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q011,ir35 accountants,ir35_compliance,head,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q012,ir35 compliant accountant for contractors,ir35_compliance,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q013,accountant for it contractor ir35 inside vs outside,ir35_compliance,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q014,best accountant for someone operating outside ir35,ir35_compliance,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q015,do i need a specialist ir35 accountant or will any ltd company accountant do,ir35_compliance,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q016,anyone recommend an accountant who actually knows ir35 inside out,ir35_compliance,long,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q017,ir35 accountant recommendations 2026,ir35_compliance,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q018,need an accountant who won't get my ir35 status wrong,ir35_compliance,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q019,is pay monthly or one off accountant better,fixed_fee_positioning,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q020,fixed monthly fee vs one off accountant fee which is better value,fixed_fee_positioning,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q021,"sick of surprise invoices from my accountant, is there a fixed fee option",fixed_fee_positioning,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q022,fixed fee accountant no hidden costs contractor,fixed_fee_positioning,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q023,"accountant that does one flat monthly fee, everything included",fixed_fee_positioning,long,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,F,T -> TRUE, 2026-08-09"
+q024,"looking for predictable accountant costs, hate surprise bills",fixed_fee_positioning,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q025,"small firm fixed fee accountant, not a big impersonal agency",fixed_fee_positioning,mid,TRUE,,"verified from Day 1 real data - matches Day 1 Q4 almost exactly, firms named (just not Mighty) | N=3 recheck F,T,T -> TRUE, 2026-08-09"
+q026,"accountant that actually understands one person consultancies, fixed monthly cost",fixed_fee_positioning,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,T,F -> FALSE, 2026-08-09"
+q027,"fixed fee accountant for a one person ltd co, no add on charges",fixed_fee_positioning,long,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,T,T -> TRUE, 2026-08-09"
+q028,monthly accountant subscription that includes bookkeeping and tax return,fixed_fee_positioning,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q029,switching accountants mid tax year limited company,switching_accountants,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q030,"sick of my accountant never replying to emails, anyone recommend someone actually good for a one person ltd co",switching_accountants,long,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,T,T -> TRUE, 2026-08-09"
+q031,"my current uk accountant keeps making mistakes with my limited company, how do i find a better one",switching_accountants,long,FALSE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q032,good accountants for contractors switching from a big impersonal firm,switching_accountants,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q033,"looking to leave my current uk accountant for my limited company, need someone more responsive",switching_accountants,long,TRUE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q034,best uk accountants for limited company owners fed up with a slow or unresponsive current provider,switching_accountants,long,TRUE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q035,"recommend a uk accountant for my limited company, leaving my current one after a bad experience",switching_accountants,long,TRUE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q036,uk accountant that can advise on dividends vs salary for my limited company and how much i can safely take out,tax_efficiency,long,FALSE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q037,uk accountant to help figure out retained profit rules for limited company dividends,tax_efficiency,long,FALSE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q038,best uk accountant for advice on paying myself dividends vs salary from my limited company,tax_efficiency,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck F,F,T -> FALSE, 2026-08-09"
+q039,need an accountant who explains director's loan account rules clearly,tax_efficiency,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q040,who can advise on the right mix of salary and dividends for a one person uk limited company,tax_efficiency,long,FALSE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q041,who's a good uk accountant for figuring out how much dividend tax i'll owe on my limited company at year end,tax_efficiency,long,TRUE,,"scripted Step 5 check, 2026-08-09 | text revised 2026-08 - added UK/limited company anchor before N=3 recheck (same bug as freelancer_agency) | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q042,accountant who can advise whether vat registration is worth it for a small limited company,tax_efficiency,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q043,accountant to explain flat rate vs standard vat for a consultancy,tax_efficiency,mid,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q044,"best accountant for vat advice, small limited company",tax_efficiency,mid,TRUE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q045,accountant who can tell me if i should voluntarily register for vat,tax_efficiency,long,FALSE,,"scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
 q046,accountant that works with pandle for a small limited company,software_compatibility,mid,TRUE,,"spot-checked via web search 2026-08 - Accounting Wise, GoForma, others named directly"
-q047,accountant familiar with pandle bookkeeping software,software_compatibility,mid,,,
-q048,"which accounting software do most contractor accountants prefer, xero or freeagent",software_compatibility,long,,,
-q049,accountant that supports freeagent for limited company contractors,software_compatibility,mid,,,
-q050,does my accountant need me to use a specific software like xero,software_compatibility,long,,,
-q051,best accounting software an accountant will actually work with for a small ltd co,software_compatibility,long,,,
+q047,accountant familiar with pandle bookkeeping software,software_compatibility,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q048,"which accounting software do most contractor accountants prefer, xero or freeagent",software_compatibility,long,FALSE,,"scripted Step 5 check, 2026-08-09"
+q049,accountant that supports freeagent for limited company contractors,software_compatibility,mid,TRUE,,"scripted Step 5 check, 2026-08-09"
+q050,does my accountant need me to use a specific software like xero,software_compatibility,long,FALSE,,"scripted Step 5 check, 2026-08-09"
+q051,best accounting software an accountant will actually work with for a small ltd co,software_compatibility,long,FALSE,,"scripted Step 5 check, 2026-08-09"
 q052,do i need an accountant for a limited company,new_company_setup,head,FALSE,,"spot-checked via web search 2026-08 - purely informational, no firms named, matches plan's own delete-example pattern"
-q053,can i run a limited company without an accountant,new_company_setup,head,,,
-q054,is it possible to not have an accountant as a first time contractor,new_company_setup,mid,BORDERLINE,,"spot-checked via web search 2026-08 - mostly informational, one source (itcontracting.com) embeds a firm list - needs real Perplexity check to resolve"
-q055,do i actually need an accountant for a short 3 month contract,new_company_setup,long,,,
-q056,"first time setting up a ltd company, do i need an accountant from day one",new_company_setup,mid,,,
-q057,"new contractor here, is an accountant essential or can i manage myself",new_company_setup,long,,,
-q058,"first time director, should i get an accountant straight away",new_company_setup,mid,,,
-q059,"accountant for a small uk digital agency, not just solo contractors, limited company",freelancer_agency,mid,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q060,"best uk accountant for a two or three person freelance agency, limited company",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q061,uk accountant that handles payroll for a small limited company agency with a couple of employees,freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q062,"looking for a uk accountant who works with small creative agencies, limited company, not just sole traders",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q063,"uk accountant for a growing freelance collective limited company, more than one director",freelancer_agency,long,,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing"
-q064,accountant with a simple monthly plan for a small limited company,fixed_fee_positioning,mid,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
-q065,accountant that offers a yearly plan instead of hourly billing,fixed_fee_positioning,long,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
-q066,"looking for an accountant with an annual plan, not per-task charges",fixed_fee_positioning,long,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
-q067,"accountant with one straightforward monthly plan, no big firm",fixed_fee_positioning,mid,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
-q068,small accountancy firm with a clear annual plan for contractors,fixed_fee_positioning,mid,,,added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing
+q053,can i run a limited company without an accountant,new_company_setup,head,FALSE,,"scripted Step 5 check, 2026-08-09"
+q054,is it possible to not have an accountant as a first time contractor,new_company_setup,mid,FALSE,,"spot-checked via web search 2026-08 - mostly informational, one source (itcontracting.com) embeds a firm list - needs real Perplexity check to resolve | scripted Step 5 check, 2026-08-09"
+q055,do i actually need an accountant for a short 3 month contract,new_company_setup,long,FALSE,,"scripted Step 5 check, 2026-08-09"
+q056,"first time setting up a ltd company, do i need an accountant from day one",new_company_setup,mid,FALSE,,"scripted Step 5 check, 2026-08-09"
+q057,"new contractor here, is an accountant essential or can i manage myself",new_company_setup,long,FALSE,,"scripted Step 5 check, 2026-08-09"
+q058,"first time director, should i get an accountant straight away",new_company_setup,mid,FALSE,,"scripted Step 5 check, 2026-08-09"
+q059,"accountant for a small uk digital agency, not just solo contractors, limited company",freelancer_agency,mid,TRUE,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing | scripted Step 5 check, 2026-08-09"
+q060,"best uk accountant for a two or three person freelance agency, limited company",freelancer_agency,long,TRUE,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing | scripted Step 5 check, 2026-08-09"
+q061,uk accountant that handles payroll for a small limited company agency with a couple of employees,freelancer_agency,long,FALSE,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing | scripted Step 5 check, 2026-08-09"
+q062,"looking for a uk accountant who works with small creative agencies, limited company, not just sole traders",freelancer_agency,long,TRUE,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing | scripted Step 5 check, 2026-08-09"
+q063,"uk accountant for a growing freelance collective limited company, more than one director",freelancer_agency,long,TRUE,,"authored to fill gap - not from personal experience, weight accordingly | text revised 2026-08 - added UK/limited company anchor after spot-check showed US firms dominating unanchored phrasing | scripted Step 5 check, 2026-08-09"
+q064,accountant with a simple monthly plan for a small limited company,fixed_fee_positioning,mid,FALSE,,"added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing | scripted Step 5 check, 2026-08-09 | N=3 recheck F,F,F -> FALSE, 2026-08-09"
+q065,accountant that offers a yearly plan instead of hourly billing,fixed_fee_positioning,long,TRUE,,"added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing | scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q066,"looking for an accountant with an annual plan, not per-task charges",fixed_fee_positioning,long,TRUE,,"added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing | scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q067,"accountant with one straightforward monthly plan, no big firm",fixed_fee_positioning,mid,TRUE,,"added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing | scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
+q068,small accountancy firm with a clear annual plan for contractors,fixed_fee_positioning,mid,TRUE,,"added post-Day 1 to test monthly/annual-plan terminology vs 'fixed fee' phrasing | scripted Step 5 check, 2026-08-09 | N=3 recheck T,T,T -> TRUE, 2026-08-09"
