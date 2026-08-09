@@ -127,14 +127,15 @@ scp tess@YOUR_SERVER_IP:~/aeo-rig/aeo.db ./aeo-backup.db
 
 *Referenced from: Part 2 — The API cost maths*
 
-Unchanged — four accounts, same as any brand.
+Three accounts, same as any brand.
 
 | Provider | Where | Notes |
 |---|---|---|
 | Perplexity | perplexity.ai/settings/api | Your workhorse. Add ~$5 credit. |
 | Anthropic | console.anthropic.com | Claude as surface + the parser |
 | OpenAI | platform.openai.com | ChatGPT as surface |
-| Brave | brave.com/search/api | 2,000 free/month |
+
+**Brave dropped, parked for later.** The original design used Brave Search as a fourth, independent "retrieval set" surface. Two things changed that: Brave killed its no-card free tier in Feb 2026 (now metered, card required, no spend cap), and — separately from cost — Claude's own `web_search` tool is strongly believed to already run on Brave's index under the hood, making a standalone Brave call largely redundant with the Claude surface anyway. Instead, the rig now extracts citations directly from Perplexity, Claude, and OpenAI's own responses (see Appendix H) — higher-fidelity data, since it's exactly what each platform used for that specific answer, at no extra cost. **Revisit Brave (or Serper, a cheap Google-backed alternative) later only if a few weeks of real data show genuine gaps** — e.g. runs where Mighty isn't mentioned and none of the three platforms' own citations explain why.
 
 ### SET BILLING CAPS. NOW. BEFORE ANY CODE.
 
@@ -146,7 +147,6 @@ Set every provider's spend limit to £15. Not because Mighty's volume will be ex
 PERPLEXITY_API_KEY=pplx-xxxxxxxxxxxx
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxx
-BRAVE_API_KEY=BSA-xxxxxxxxxxxx
 ```
 
 ```
@@ -697,10 +697,22 @@ def ask_claude(question):
         messages=[{"role": "user", "content": question}],
     )
     text = ""
+    urls = []
     for block in msg.content:
         if block.type == "text":
             text += block.text
-    return text, []
+            # inline citations attached to this text block, if any
+            for citation in getattr(block, "citations", None) or []:
+                url = getattr(citation, "url", None)
+                if url:
+                    urls.append(url)
+        elif block.type == "web_search_tool_result":
+            # the raw set of pages the tool call returned, cited or not
+            for result in getattr(block, "content", None) or []:
+                url = getattr(result, "url", None)
+                if url:
+                    urls.append(url)
+    return text, list(dict.fromkeys(urls))  # de-duped, order preserved
 
 
 def ask_openai(question):
@@ -708,26 +720,20 @@ def ask_openai(question):
         model="gpt-4o-search-preview",
         messages=[{"role": "user", "content": question}],
     )
-    return resp.choices[0].message.content, []
-
-
-def get_brave_retrieval_set(question):
-    r = requests.get(
-        "https://api.search.brave.com/res/v1/web/search",
-        headers={"X-Subscription-Token": os.getenv("BRAVE_API_KEY")},
-        params={"q": question, "count": 10},
-        timeout=30,
-    )
-    r.raise_for_status()
-    results = r.json().get("web", {}).get("results", [])
-    return "", [x["url"] for x in results]
+    message = resp.choices[0].message
+    urls = []
+    for annotation in getattr(message, "annotations", None) or []:
+        citation = getattr(annotation, "url_citation", None)
+        url = getattr(citation, "url", None) if citation else None
+        if url:
+            urls.append(url)
+    return message.content, list(dict.fromkeys(urls))
 
 
 SURFACES = {
     "perplexity": (ask_perplexity, "sonar"),
     "claude":     (ask_claude,     "claude-sonnet-4-5"),
     "openai":     (ask_openai,     "gpt-4o-search-preview"),
-    "brave":      (get_brave_retrieval_set, "brave-search"),
 }
 
 
@@ -801,9 +807,11 @@ if __name__ == "__main__":
 
 **Errors get a row, not silence.** Ambiguity between "failed" and "never ran" corrupts your denominators.
 
+**Citations come from the platforms themselves, not a separate search call.** `ask_claude` and `ask_openai` now pull the URLs each platform actually used for that specific answer (Claude via `web_search_tool_result`/`citations` blocks, OpenAI via `message.annotations`), the same way `ask_perplexity` already did via its `citations` field. This replaced a fourth "independent" surface (Brave) that turned out to be redundant with Claude's own retrieval anyway — see the note in Appendix B. Response shapes for tool-use/search features shift between SDK versions, so when Claude Code builds this for real, have it verify the exact field names against the current Anthropic and OpenAI docs before trusting the output.
+
 ### Rough runtime
 
-60 questions × 4 surfaces × 5 runs × ~2s = **~40 minutes**. Fine at 3am.
+60 questions × 3 surfaces × 5 runs × ~2s = **~30 minutes**. Fine at 3am.
 
 ---
 
