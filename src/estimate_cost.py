@@ -13,18 +13,27 @@
 # don't let them go stale the way the original $0.04 guesses did.
 import sys
 import sqlite3
+import yaml
 from pathlib import Path
 
 DB = Path(__file__).resolve().parent / "aeo.db"
 
-TEST_TOPICS         = {"fixed_fee_positioning"}
-NEAR_CONTROL_TOPICS = {"general_recommendation", "switching_accountants"}
 
-BASELINE_AFTER_RUNS = {"fixed_fee_positioning": 10, "general_recommendation": 5}  # must match rig.py
-DEFAULT_BASELINE_AFTER_RUNS = 3
+def load_config():
+    with open(Path(__file__).resolve().parent / "config.yaml") as f:
+        return yaml.safe_load(f)
 
-CANARY_RUNS_TEST_NEAR = 3
-CANARY_RUNS_FAR       = 2
+
+# Derived from config.yaml (added 2026-08-10) — the same file rig.py reads,
+# so these two can no longer drift out of sync the way they did before.
+_config = load_config()
+TEST_TOPICS         = set(_config["test_topics"])
+NEAR_CONTROL_TOPICS = set(_config["near_control_topics"])
+MATCHED_PAIR_TOPICS = set(_config["matched_pair_topics"])
+BASELINE_AFTER_RUNS = _config["baseline_after_runs"]
+DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
+CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
+CANARY_RUNS_FAR       = _config["canary_runs_far"]
 
 PER_CALL_ESTIMATE = {
     "perplexity": 0.01,
@@ -35,6 +44,8 @@ PER_CALL_ESTIMATE = {
 
 def runs_for_topic(topic, mode):
     if mode == "canary":
+        if topic in MATCHED_PAIR_TOPICS:
+            return 0
         if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
             return CANARY_RUNS_TEST_NEAR
         return CANARY_RUNS_FAR

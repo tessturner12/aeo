@@ -93,6 +93,8 @@ The fix for the first one — and it's the fix that defines your entire offer �
 
 Nobody in this market is doing that. You will. That's the business.
 
+**Platform risk is a feature of the positioning, not a threat to it.** OpenAI, Google, Anthropic and Perplexity can change models, retrieval, citation behaviour and pricing overnight — this project has already been bitten by exactly that once, when `gpt-4o-search-preview` turned out to be past its shutdown date mid-build. A business whose value is "we know the algorithm" breaks every time that happens. One whose value is "we continuously measure what changed" gets stronger each time it does. That's the actual moat, not the Python code.
+
 ## One honest caveat to state up front, every time
 
 The rig measures answers from each platform's API — Perplexity's `sonar`, Claude with the `web_search` tool, ChatGPT's search-preview model, and (once added) Gemini's Search grounding. That's a real, precise measurement of a real thing. It is not automatically identical to what a person sees opening the ChatGPT app on their phone — different search-triggering thresholds, no personalization, no memory. If Mighty's own founder checks by hand and gets a different answer than the rig reports, the instinct is "your numbers are wrong," not "interesting methodological nuance." Say the caveat first, in the first sentence of any write-up — "measured via each platform's API, which can differ from what you'd see in the consumer app" — rather than let someone else discover the gap and draw their own conclusion about your rigor.
@@ -354,6 +356,12 @@ Deterministic, not random: `fixed_fee_positioning` (10 questions, the diagnosed 
 2. **Narrow the interventions wherever there's discretion**, even without site access: a fixed-fee/small-firm-specific forum thread rather than a generic one, an Instagram post framed around "fixed fee, not a big impersonal firm," "fixed fee" language in any directory listing category/blurb field you control.
 3. **Check for spillover directly, not just inferred.** `cited_urls` is stored as JSON per run. After the after-checkpoint, check whether the exact URLs touched (directory listing, forum thread) show up in near- or far-control citations — provable, not an ambiguous number to argue about. Query in Appendix M.
 
+### Pre-registered before baseline runs (2026-08-10)
+
+**Perplexity is the primary surface for the significance test.** Testing across all 3 surfaces independently gives roughly 14% family-wise error before any of the clustering issues in Appendix M are even considered. Perplexity has the strongest measured intervention mechanism (4/5 Day-1 cells cite the planned directories, 4/5 cite Reddit — see Appendix K) and Mighty sits at genuine zero there. Claude and OpenAI results are reported alongside, without a p-value attached.
+
+This is dated and written down *before* the baseline checkpoint runs, so it can't be quietly picked after seeing which surface looks best.
+
 ### Checkpoint 1: baseline — run this before any Week 2 changes, not after
 
 Re-ordered 2026-08-10: this has to happen *before* Week 2's interventions, not be a footnote after them — it's the "before" half of the before/after comparison.
@@ -383,6 +391,10 @@ GROUP BY r.surface;
 - Remember the real uncertainty here is wide — Day 1's own data on this question type was n=8, all zero, with a 95% Wilson interval of [0%, 32%]. The real baseline checkpoint (n=100) will tell you something that small a sample couldn't.
 
 ### Week 2 (Days 10-14ish): Make the changes, test topic only
+
+**Standing rule, not a per-engagement judgement call: no manufactured evidence, ever.** No sock-puppet accounts, no seeded comments, no paid covert mentions, no invented customer experiences. If a mention isn't true and useful on its own terms, it doesn't get posted — for this case study and for any future client work. Any forum or social mention of Mighty discloses, **in the post itself**, that the poster isn't a Mighty customer and this is part of a measurement experiment — not only in these project notes.
+
+Log each intervention in the `interventions` table with a distinct `type` — `directory`, `forum`, or `social` — not one undifferentiated "did stuff" entry. The column already exists; using it distinctly is what lets the after-checkpoint's `cited_urls` data attribute any observed movement to a specific lever.
 
 Only these are in play, given the surprise decision:
 - Submit Mighty to the directories Day 1 identified as heavily cited: ContractorUK, UmbrellaCompany, LimitedCompanyHelp. Narrow the listing category/blurb toward "fixed fee" / "small firm" language where the submission form allows it.
@@ -419,9 +431,17 @@ Same weighted run counts, same cost-optimized settings as baseline. Covers test 
 
 Run Appendix M's checkpoint-keyed queries (baseline/canary/after, not a hardcoded date), the near/far breakdown, the significance test, the framing-tag cut (monthly vs fixed-fee vs annual wording — bonus, directional only, each group is only 3-4 questions), and the direct spillover-URL check. Go through "before you believe anything" honestly — did control move too? is it significant or noise? did the canary trend look consistent with after, or does after look like a one-off? Write it up plainly, including if nothing moved — that's still the deliverable either way.
 
+**Reporting and language rules — standing constraints on every output, added 2026-08-10.** Free, and each one closes off a specific overclaim this whole correction round exists to prevent:
+
+- **Never report "n=300" or any single pooled call count as if it were independent evidence.** Always state the four numbers separately: unique questions, runs per question, surfaces, and unique question×surface combinations. Collapsing them into one figure is the exact overclaim the pseudoreplication finding (Appendix M) exists to prevent.
+- **Never say a result was "caused."** Say "we observed a statistically significant increase in the treatment queries" (or "a directional increase, not significant at this sample size," when that's what it is). Given the ICC/cluster-count findings, this is accuracy, not modesty.
+- **Never equate visibility with market share.** There's no query-volume data for AI questions — that's a stated premise of this whole project. Report "measured AI recommendation visibility," never "% of potential customers reached."
+- **The API-vs-consumer caveat goes in the first sentence of every output, not a methodology footnote.** Something like: *"Results reflect API-based measurements on [date]; the consumer apps (ChatGPT, Claude.ai, etc.) may answer differently due to personalisation, memory, and product configuration."* Already a stated principle in Part 0 — this makes it a fixed template line so it can't be forgotten under deadline.
+- **Report retrieval-source visibility as a first-class headline output, not a buried working query.** "72% of answers cite Reddit, 40% cite ContractorUK, 5% cite mightyaccounting.com" (Appendix I's citation-frequency query) is more actionable than any single visibility score, and should be promoted accordingly in the writeup, not left as a supporting SQL block.
+
 ### Billing caps — revisit before Week 3
 
-Real measured cost across all three checkpoints, using `estimate_cost.py all` after `fixed_fee_positioning`'s N was raised to 10 (see Appendix K — the power check justified the extra spend): **Perplexity ~$4.83, Claude ~$24.15, OpenAI ~$33.81, total ~$63.** The original £15-per-provider cap from Appendix B was set before any of these numbers existed. **Raise Anthropic to £25-30 and OpenAI to £30-35 before the after-checkpoint** — OpenAI's total sits close enough to a lower cap that one high-variance run could trip it mid-checkpoint, the worst possible time to lose one.
+Real measured cost across all three checkpoints, using `estimate_cost.py all` after `fixed_fee_positioning`'s N was raised to 10 (Appendix K) **and** the 8 matched pairs were added (external-review corrections, 2026-08-10): **Perplexity ~$6.43, Claude ~$32.15, OpenAI ~$45.01, total ~$83.59.** The original £15-per-provider cap from Appendix B was set before any of these numbers existed, and the earlier £25-30/£30-35 revision was set before the matched pairs pushed the totals up again. **Raise Anthropic to £30-35 and OpenAI to £45-50 before the after-checkpoint** — OpenAI's real total is now close enough to a lower cap that one high-variance run could trip it mid-checkpoint, the worst possible time to lose one. Re-run `estimate_cost.py all` and re-check this number before every future addition to the question set — it has now changed twice.
 
 Day 30+ (monetization staging) is already fully written below and doesn't need changes — just carries forward as-is.
 

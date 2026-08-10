@@ -525,6 +525,8 @@ CREATE TABLE IF NOT EXISTS runs (
     brand_mentioned   BOOLEAN,
     brand_position    INTEGER,       -- 1 = named first; NULL if absent
     competitors_named TEXT,          -- JSON array
+    recommended         BOOLEAN,     -- true only if brand is actively recommended, not merely mentioned
+    recommendation_rank INTEGER,     -- 1 = first/primary recommendation; NULL if not recommended
     parse_ok          BOOLEAN DEFAULT 1,
     error             TEXT,
     checkpoint        TEXT CHECK (checkpoint IN ('baseline','canary','after'))
@@ -603,6 +605,8 @@ Extract, as JSON only, no other text:
 {{
   "brand_mentioned": true/false,
   "brand_position": <int or null>,
+  "recommended": true/false,
+  "recommendation_rank": <int or null>,
   "competitors_named": [<strings>],
   "sentiment": "positive" | "neutral" | "negative" | null,
   "products_named_at_all": true/false
@@ -616,6 +620,16 @@ Rules:
   "MightyRecruiter".
 - brand_position: 1 if it's the first firm named, 2 if second,
   etc. null if absent.
+- recommended: true ONLY if the answer actively suggests or endorses
+  the brand as a choice — not merely names it. "Mighty Accounting is
+  a small UK accountant. However, Gorilla Accounting has more
+  experience..." mentions the brand but does NOT recommend it —
+  recommended must be false here. A shortlist entry with no negative
+  qualifier ("consider Mighty Accounting, Gorilla, or Crunch") counts
+  as recommended: true.
+- recommendation_rank: 1 if the brand is the first/primary
+  recommendation, 2 if second-ranked, etc. null if recommended is
+  false.
 - competitors_named: every OTHER accountancy firm named, exact
   names (e.g. "Gorilla Accounting", "GoForma", "Crunch",
   "QAccounting", "Caroola", "SJD Accountancy", "Brookson").
@@ -676,6 +690,7 @@ import os, sys, json, time, sqlite3, random
 from datetime import datetime
 from pathlib import Path
 import requests
+import yaml
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
@@ -684,8 +699,7 @@ from parser import parse_answer
 
 load_dotenv()
 
-BRAND = "Mighty Accounting"
-DB    = Path(__file__).resolve().parent / "aeo.db"
+DB = Path(__file__).resolve().parent / "aeo.db"
 
 MODE = sys.argv[1] if len(sys.argv) > 1 else "baseline"
 assert MODE in ("baseline", "canary", "after"), "usage: python rig.py [baseline|canary|after]"
@@ -696,18 +710,30 @@ OPENAI_MODEL  = "gpt-5.6-terra"
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 openai_client    = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Loaded from config.yaml (added 2026-08-10) so the rig is reusable for a
+# different brand/client by swapping one file instead of editing code.
 # See Appendix J for the cohort/tier rationale.
-TEST_TOPICS         = {"fixed_fee_positioning"}
-NEAR_CONTROL_TOPICS = {"general_recommendation", "switching_accountants"}
+def load_config():
+    with open(Path(__file__).resolve().parent / "config.yaml") as f:
+        return yaml.safe_load(f)
 
-BASELINE_AFTER_RUNS = {"fixed_fee_positioning": 10, "general_recommendation": 5}
-DEFAULT_BASELINE_AFTER_RUNS = 3
-CANARY_RUNS_TEST_NEAR = 3
-CANARY_RUNS_FAR       = 2
+_config = load_config()
+
+BRAND               = _config["brand"]
+TEST_TOPICS         = set(_config["test_topics"])
+NEAR_CONTROL_TOPICS = set(_config["near_control_topics"])
+MATCHED_PAIR_TOPICS = set(_config["matched_pair_topics"])
+BASELINE_AFTER_RUNS = _config["baseline_after_runs"]
+DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
+CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
+CANARY_RUNS_FAR       = _config["canary_runs_far"]
+PRIMARY_SURFACE       = _config["primary_surface"]
 
 
 def runs_for_topic(topic):
     if MODE == "canary":
+        if topic in MATCHED_PAIR_TOPICS:
+            return 0  # matched pairs run at baseline/after only — see config.yaml
         if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
             return CANARY_RUNS_TEST_NEAR
         return CANARY_RUNS_FAR
@@ -834,8 +860,8 @@ def run_cycle():
                             question_id, surface, model, run_index, ts,
                             raw_answer, cited_urls, brand_mentioned,
                             brand_position, competitors_named, parse_ok,
-                            checkpoint
-                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                            checkpoint, recommended, recommendation_rank
+                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (
                         qid, surface_name, model, run_index,
                         datetime.now().isoformat(),
@@ -846,6 +872,8 @@ def run_cycle():
                         json.dumps(parsed.get("competitors_named", [])),
                         parsed.get("parse_ok", True),
                         MODE,
+                        parsed.get("recommended"),
+                        parsed.get("recommendation_rank"),
                     ))
                     conn.commit()
 
@@ -888,7 +916,7 @@ if __name__ == "__main__":
 
 ### Real cost and runtime (measured, not estimated)
 
-The original "~2s/call, ~30 minutes" estimate assumed plain chat calls. Web search calls are slower and far heavier on tokens than that — real measured cost per call: Perplexity ~$0.01, Claude ~$0.035-0.05 (with `max_uses=1`), OpenAI ~$0.065-0.10 (`search_context_size="low"`, high variance). Run `python estimate_cost.py <mode>` before every real checkpoint to get the current number against the actual question set — don't rely on this appendix's figures staying accurate. As of 2026-08-10 (after `fixed_fee_positioning`'s N was raised to 10 per Appendix K's power check): baseline/after ≈ $25 each, canary ≈ $12, total ≈ $63 across all three. Real time per call is more like 5-15s given search latency — expect 45-75 minutes for baseline/after (582 calls each), less for canary.
+The original "~2s/call, ~30 minutes" estimate assumed plain chat calls. Web search calls are slower and far heavier on tokens than that — real measured cost per call: Perplexity ~$0.01, Claude ~$0.035-0.05 (with `max_uses=1`), OpenAI ~$0.065-0.10 (`search_context_size="low"`, high variance). Run `python estimate_cost.py <mode>` before every real checkpoint to get the current number against the actual question set — don't rely on this appendix's figures staying accurate. As of 2026-08-10 (after `fixed_fee_positioning`'s N raised to 10 per Appendix K's power check, and the 8 matched pairs added per the external-review corrections): **baseline/after ≈ $35.62 each (822 calls), canary ≈ $12.35 (285 calls, matched pairs excluded), total ≈ $83.59 across all three.** Real time per call is more like 5-15s given search latency — expect **75-226 minutes (up to ~3.8hr) for baseline/after**, less for canary.
 
 ---
 
@@ -1079,6 +1107,33 @@ GROUP BY r.surface;
 - **Above ~5% pooled, or meaningfully nonzero on one surface** → the planned interventions are unlikely to move the pooled number enough to reach significance at N=10, given the power numbers above — but check whether the effort should instead be evaluated per-surface if one platform is carrying most of the baseline presence. Worth a real decision at that point, not a silent hope: accept that a null (or per-surface-only) result is the likely honest outcome and frame the writeup accordingly, push N higher still (diminishing but real returns — see the table above), or revisit the "staying fully surprise" decision from Day 8-9 since site-access interventions are a fundamentally stronger treatment than anything on the no-cooperation list.
 - **Remember the actual uncertainty here is wide.** Day 1's own data on this exact question type was 2 runs × 4 platforms, all zero (n=8) — a 95% Wilson interval on that is [0%, 32%], not a tight "probably near zero." The baseline checkpoint's real n=100 will tell you something Day 1's 8 observations couldn't.
 
+### The +10pp assumption was a guess. It no longer needs to be.
+
+Day 1's `day1-category-check.md` was parsed into its 20 model×question cells and checked for citations to the three planned Week 2 directory targets:
+
+| domain | cells citing it |
+|---|---|
+| crunch.co.uk | 10/20 (50%) |
+| reddit.com | 9/20 (45%) |
+| contractoruk | 8/20 (40%) |
+| limitedcompanyhelp | 6/20 (30%) |
+| umbrellacompany | 3/20 (15%) |
+| **any of the three planned directories** | **11/20 (55%)** |
+| mightyaccounting.com | 1/20 (5%) |
+
+The intervention has a real mechanism in 55% of answers. But being *listed* on a cited directory isn't the same as being *named* in the answer — the directory lists dozens of firms and the model selects a handful. At a plausible 15-25% conditional selection rate (a genuine estimate, not measured — the single weakest number in this section), the realistic ceiling is **8-14pp**, not an arbitrary +10pp. That range is what the power table above should be read against.
+
+**Per-surface, this intervention has almost no mechanism on two of the three surfaces:**
+
+| surface | planned directories present | reddit present |
+|---|---|---|
+| Perplexity | 4/5 | 4/5 |
+| ChatGPT | 4/5 | 5/5 |
+| Claude | 2/5 | 0/5 |
+| Gemini | 1/5 | 0/5 |
+
+Claude cites neither Reddit nor the target directories in this sample. Pooling surfaces when one is structurally unreachable by the treatment dilutes any real effect — this is why Perplexity is pre-registered as the primary surface (see the plan doc, dated before baseline).
+
 ### Original mechanics (per-topic/cohort, run against real data once `runs` has rows)
 
 ```python
@@ -1194,7 +1249,57 @@ Binary gate, not an optimization. Check once, move on.
 
 **Also corrected the same day, caught cross-checking this appendix with a second model:** every query in this section pools all three surfaces into one rate. Day 1 found Mighty present (thinly) on ChatGPT and at genuine zero on Claude and Perplexity — not a uniform low rate. Pooling risks diluting a real single-surface effect into noise, or averaging together three platforms that don't actually behave the same way. **Run the per-surface version alongside the pooled one, always** — don't trust the pooled number in isolation. Appendix K's baseline gate now does this too.
 
-### The only chart that matters
+### Corrected again 2026-08-10 — the primary test changes
+
+Cross-checked against a second model's independent statistical critique, then verified against this repo's own data rather than trusted on the page. Two things came out of it, both confirmed by direct computation:
+
+**The ICC on `is_product` (from `research/step5_recheck_log.jsonl`, 40 questions × 3 Perplexity draws each) is 0.80.** Repeated runs of the same question are far more correlated with each other than with a different question — which is expected (a purely informational question returns zero every time; a genuinely contested one might not), but it means **the between-cluster significance test below is not valid.** Simulated false-positive rate for `proportions_ztest` comparing 10 test-cluster questions against 26 control-cluster questions, under a true null, at realistic heterogeneity: **22-24% across five different random seeds** — four to five times the nominal 5%, not a fluke of one simulation run.
+
+**It gets worse than "the test is miscalibrated."** With only 7 topic-level clusters (1 test, 6 control), the finest possible p-value from *any* cluster-level randomization test is 1/7 ≈ 0.143 — mathematically incapable of reaching conventional significance regardless of the true effect size or which statistical model is used. A more sophisticated model does not fix this; there are simply not enough independent clusters for any valid frequentist test at the cluster level.
+
+**The fix: change the primary comparison, don't try to rescue the old one.**
+
+```sql
+-- PRIMARY ANALYSIS: per-question paired difference, baseline vs after,
+-- on the SAME questions. Pairing cancels the between-question variance
+-- that makes the cluster-level test below invalid — this is the
+-- comparison that actually has correct statistical coverage.
+SELECT
+    q.id,
+    q.topic,
+    ROUND(AVG(CASE WHEN r.checkpoint = 'baseline' THEN r.brand_mentioned END), 4) AS p_baseline,
+    ROUND(AVG(CASE WHEN r.checkpoint = 'after'    THEN r.brand_mentioned END), 4) AS p_after
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1 AND q.topic = 'fixed_fee_positioning'
+GROUP BY q.id, q.topic;
+```
+
+```python
+# Paired bootstrap significance test on the per-question deltas above.
+# Run after pulling the SQL result into a DataFrame `df` with columns
+# p_baseline, p_after.
+import numpy as np
+
+def paired_bootstrap_test(deltas, n_boot=10000, seed=7):
+    rng = np.random.default_rng(seed)
+    k = len(deltas)
+    boot_means = [rng.choice(deltas, size=k, replace=True).mean() for _ in range(n_boot)]
+    ci_low, ci_high = np.percentile(boot_means, [2.5, 97.5])
+    return ci_low, ci_high
+
+deltas = (df["p_after"] - df["p_baseline"]).to_numpy()
+ci_low, ci_high = paired_bootstrap_test(deltas)
+print(f"mean delta = {deltas.mean():.1%}, 95% CI [{ci_low:.1%}, {ci_high:.1%}]")
+if ci_low > 0:
+    print("Significant increase — the CI excludes zero.")
+else:
+    print("Not significant at this sample size. Report that plainly.")
+```
+
+**The test-vs-control cluster comparison below is demoted to descriptive.** Report the deltas side by side as a drift check — it still does its job (catching "the whole market moved, not just Mighty"), it just doesn't get a p-value, because no valid one exists at 7 clusters. Do not run `proportions_ztest` on it.
+
+### Test vs. control, by checkpoint (descriptive only — no p-value here, see above)
 
 ```sql
 -- Pooled (the headline comparison)
@@ -1292,6 +1397,26 @@ ORDER BY framing, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'canary' THEN 2 
 
 The hypothesis this tests directly: Mighty's own hero copy already says "£60pm + VAT" (monthly-framed), but not "fixed fee." Predict `monthly` sits higher at baseline and moves *less* after the intervention; `fixed_fee` and `annual` sit lower at baseline and move *more*, since that's the actual gap being closed.
 
+### Matched pairs — the drift-robust secondary comparison
+
+8 fixed-fee-framed vs. generic-framed question pairs (`matched_pair_treatment`/`matched_pair_control` topics), added 2026-08-10. This is the only comparison in the design that's robust to market-wide drift over the 4-week window — the paired baseline→after test above would call a market-wide rise a win; this wouldn't, because both arms of every pair move together if the drift is real and general, not fixed-fee-specific.
+
+```sql
+SELECT
+    q.notes AS pair_tag,
+    q.topic,
+    r.checkpoint,
+    ROUND(AVG(r.brand_mentioned) * 100, 1) AS soa_pct,
+    COUNT(*) AS n
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1 AND q.topic IN ('matched_pair_treatment', 'matched_pair_control')
+GROUP BY q.notes, q.topic, r.checkpoint
+ORDER BY q.notes, q.topic, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'after' THEN 2 END;
+```
+
+Read it pair by pair: if the treatment side of a pair moves and the control side doesn't, that's evidence the fixed-fee framing specifically mattered, not just general visibility drift. No canary data here — matched pairs only run at baseline and after (see `config.yaml`).
+
 ### Spillover check — direct evidence, not inference
 
 Don't just infer spillover from whether near-control's number moved — check whether the actual URL you touched (the directory listing, the forum thread) shows up in a control cluster's citations:
@@ -1317,25 +1442,20 @@ Matches in `general_recommendation`/`switching_accountants` (near control) only 
 | +2pp | +1pp | Nothing happened either way. |
 | -3pp | +8pp | You may have made it *worse*. Investigate. |
 
-### Significance test
+### Between-cluster comparison — descriptive, not a significance test
+
+Do not compute or report a p-value from this comparison — the ICC/cluster-count argument above shows no valid one exists at 7 clusters. This code stays for the drift check only: is the observed direction in `control_hits_after` consistent with market-wide movement, or isolated to test? Read the numbers, do not read a p-value into them.
 
 ```python
-from statsmodels.stats.proportion import proportions_ztest
-import numpy as np
-
-counts = np.array([test_hits_after, control_hits_after])
-nobs   = np.array([test_n_after,   control_n_after])
-
-stat, pval = proportions_ztest(counts, nobs)
-print(f"z = {stat:.3f}, p = {pval:.4f}")
-
-if pval < 0.05:
-    print("Difference is statistically significant.")
-else:
-    print("Not significant. Report that plainly.")
+# Descriptive only — report the rates, not a p-value.
+test_rate = test_hits_after / test_n_after
+control_rate = control_hits_after / control_n_after
+print(f"test: {test_rate:.1%} (n={test_n_after})")
+print(f"control: {control_rate:.1%} (n={control_n_after})")
+print(f"delta: {(test_rate - control_rate)*100:.1f}pp — descriptive, not a significance test")
 ```
 
-**Run this twice** — once on the pooled `test_hits_after`/`control_hits_after` counts, once per surface (using the per-surface query above to get each surface's counts). Given Day 1's evidence of real per-platform heterogeneity, a pooled non-significant result doesn't rule out a real, significant effect on one surface specifically — check both before writing "not significant" as the final word.
+**Run this per surface too**, not just pooled (using the per-surface query above to get each surface's counts) — Day 1's evidence of real per-platform heterogeneity means the pooled rate can hide a real single-surface pattern. The *primary* significance test for whether anything happened at all is the paired bootstrap earlier in this appendix — this section only ever answers "did control move too."
 
 ### Per-topic breakdown
 

@@ -3,6 +3,7 @@ import os, sys, json, time, sqlite3, random
 from datetime import datetime
 from pathlib import Path
 import requests
+import yaml
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
@@ -11,8 +12,7 @@ from parser import parse_answer
 
 load_dotenv()
 
-BRAND = "Mighty Accounting"
-DB    = Path(__file__).resolve().parent / "aeo.db"
+DB = Path(__file__).resolve().parent / "aeo.db"
 
 MODE = sys.argv[1] if len(sys.argv) > 1 else "baseline"
 assert MODE in ("baseline", "canary", "after"), "usage: python rig.py [baseline|canary|after]"
@@ -28,38 +28,34 @@ openai_client    = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 # ---------- RUN ALLOCATION ----------
-# Cohort tiers — fixed_fee_positioning is the test cluster (diagnosed Day-1
-# gap: Mighty's own hero copy says "£60pm + VAT", not "fixed fee"). Near
-# control is semantically close enough to plausibly show intervention
-# spillover; far control should stay flat. No holdout tier — see log.md,
-# 2026-08-10: an untouched-forever cluster wasn't worth the N it would cost
-# on an already question-poor dataset, and the near/far split plus the
-# direct cited-URL spillover check (Appendix M) cover what holdout was for.
-TEST_TOPICS        = {"fixed_fee_positioning"}
-NEAR_CONTROL_TOPICS = {"general_recommendation", "switching_accountants"}
-# everything else (tax_efficiency, software_compatibility, ir35_compliance,
-# freelancer_agency) is far control.
+# Loaded from config.yaml (added 2026-08-10) so the rig is reusable for a
+# different brand/client by swapping one file instead of editing code —
+# see docs/superpowers/specs/2026-08-10-external-review-corrections-design.md,
+# decision A7. Cohort-tier and run-count rationale (why fixed_fee_positioning
+# is test, why N=10 not N=5, why matched pairs are separate) lives in
+# config.yaml's comments and Appendix J/K, not duplicated here.
 
-# Baseline/after: weight toward the two clusters big enough to support a
-# real confidence interval. fixed_fee_positioning gets N=10, not just N=5 —
-# power.py (Appendix K) run against realistic Day-1-derived baseline rates
-# (2-10%) showed N=5 (n=50) only reaches 29-56% power to detect even a
-# generous +10pp lift from the planned (weak, cooperation-free) interventions.
-# N=10 (n=100) gets that to 52-85% power for +$13 total — see log.md,
-# 2026-08-10. general_recommendation stays at N=5 — it's a control
-# comparator, not the hypothesis under test, doesn't need the same power.
-BASELINE_AFTER_RUNS = {"fixed_fee_positioning": 10, "general_recommendation": 5}
-DEFAULT_BASELINE_AFTER_RUNS = 3
+def load_config():
+    with open(Path(__file__).resolve().parent / "config.yaml") as f:
+        return yaml.safe_load(f)
 
-# Canary: full coverage, lighter than baseline/after. Test + near-control get
-# enough runs to see if a signal recurs; far-control just needs a flatness
-# check. Sized to land near $10-13 for the whole canary pass — see log.md.
-CANARY_RUNS_TEST_NEAR = 3
-CANARY_RUNS_FAR       = 2
+_config = load_config()
+
+BRAND               = _config["brand"]
+TEST_TOPICS         = set(_config["test_topics"])
+NEAR_CONTROL_TOPICS = set(_config["near_control_topics"])
+MATCHED_PAIR_TOPICS = set(_config["matched_pair_topics"])
+BASELINE_AFTER_RUNS = _config["baseline_after_runs"]
+DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
+CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
+CANARY_RUNS_FAR       = _config["canary_runs_far"]
+PRIMARY_SURFACE       = _config["primary_surface"]
 
 
 def runs_for_topic(topic):
     if MODE == "canary":
+        if topic in MATCHED_PAIR_TOPICS:
+            return 0  # matched pairs run at baseline/after only — see config.yaml
         if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
             return CANARY_RUNS_TEST_NEAR
         return CANARY_RUNS_FAR
@@ -215,8 +211,8 @@ def run_cycle():
                             question_id, surface, model, run_index, ts,
                             raw_answer, cited_urls, brand_mentioned,
                             brand_position, competitors_named, parse_ok,
-                            checkpoint
-                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                            checkpoint, recommended, recommendation_rank
+                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (
                         qid, surface_name, model, run_index,
                         datetime.now().isoformat(),
@@ -227,6 +223,8 @@ def run_cycle():
                         json.dumps(parsed.get("competitors_named", [])),
                         parsed.get("parse_ok", True),
                         MODE,
+                        parsed.get("recommended"),
+                        parsed.get("recommendation_rank"),
                     ))
                     conn.commit()
 

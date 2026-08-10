@@ -1,0 +1,37 @@
+# config.yaml — per-brand configuration. rig.py reads this instead of
+# hardcoding brand/topic values, so the same rig can run a different
+# client by swapping this file. See docs/superpowers/specs/2026-08-10-
+# external-review-corrections-design.md, decision A7.
+
+brand: "Mighty Accounting"
+
+# Cohort tiers — see Appendix J for the rationale.
+test_topics:
+  - fixed_fee_positioning
+
+near_control_topics:
+  - general_recommendation
+  - switching_accountants
+
+# Matched-pair topics (added 2026-08-10) run only at baseline/after, never
+# canary — see Appendix M's matched-pairs section.
+matched_pair_topics:
+  - matched_pair_treatment
+  - matched_pair_control
+
+# Weighted run counts for baseline/after checkpoints.
+baseline_after_runs:
+  fixed_fee_positioning: 10
+  general_recommendation: 5
+  matched_pair_treatment: 5
+  matched_pair_control: 5
+default_baseline_after_runs: 3
+
+# Canary checkpoint run counts.
+canary_runs_test_near: 3
+canary_runs_far: 2
+
+# Pre-registered primary surface (Appendix K/M) — dated 2026-08-10, before
+# the baseline checkpoint runs. Perplexity has the strongest measured
+# intervention mechanism (Day 1: 4/5 directories, 4/5 Reddit cited).
+primary_surface: perplexity
