@@ -195,7 +195,7 @@ Unchanged from the general plan — worth restating briefly since it's brand-agn
 
 ## The recommendation
 
-**Build locally (Days 1-5, SQLite, free). Move to a Hetzner CX22 (~€4.50/month, hourly billed) before Day 15,** when the experiment needs to run unattended overnight. Both laptops connect to the same box via VS Code Remote-SSH, so switching machines mid-project isn't a sync problem — there's one database, one source of truth, on the server.
+**Build locally (Days 1-5, SQLite, free). Move to a Hetzner CX22 (~€4.50/month, hourly billed) before Day 15** — not for nightly unattended operation anymore (corrected 2026-08-10: three deliberate checkpoints, not a recurring cron — see Days 8-30 below), but so a 45-75 minute checkpoint run isn't lost if a laptop lid closes mid-run. Both laptops connect to the same box via VS Code Remote-SSH, so switching machines mid-project isn't a sync problem — there's one database, one source of truth, on the server.
 
 A USB drive was considered and rejected: it solves file-syncing, not scheduling, and the rig's core requirement — running unattended at 3am for 30 consecutive days — needs a machine that's always on, not a file you carry between laptops.
 
@@ -306,26 +306,124 @@ Ran the full method: brain dump → Claude expansion → clustering → tiering 
 | **new_company_setup** | **0** | 7 | 7 |
 
 - **`new_company_setup` is a total wipeout — 0 of 7 survived.** Matches the plan's own prediction exactly ("do I need an accountant" questions are pure informational, no firm ever gets named). Not a bug — the filter working as designed. Practical effect: the design is now **7 usable clusters, not 8** — this one simply won't appear once cohort assignment runs.
-- **`tax_efficiency` is thin — 2 of 10.** Not zero, but thin enough that N=5 runs on 2 questions gives a tiny, high-variance cell. Worth deliberately weighting remaining run budget toward the clusters that can actually support a claim (`fixed_fee_positioning` at 9, `general_recommendation` at 9) rather than spreading runs evenly across clusters that structurally can't carry one.
+- **`tax_efficiency` is thin — 2 of 10.** Not zero, but thin enough that N=5 runs on 2 questions gives a tiny, high-variance cell. Worth deliberately weighting remaining run budget toward the clusters that can actually support a claim (`fixed_fee_positioning`, `general_recommendation`) rather than spreading runs evenly across clusters that structurally can't carry one — see the correction below for the actual post-reclassification counts.
 - **Anchoring bug caught and fixed:** phrasings without an explicit UK/limited-company anchor (`freelancer_agency`, and part of `tax_efficiency`) were pulling in unrelated or US-based results in spot-checks. Every `freelancer_agency` row and the dividend/VAT rows in `tax_efficiency` were rewritten with explicit "uk"/"limited company" anchoring — the other clusters anchor naturally via "IR35," "contractor," or "limited company" already being in the phrasing, so this only bit the two clusters that didn't.
 - **A follow-up N=3 majority-vote recheck** (`step5_recheck.py`) was run on four clusters that looked unreliable on a single draw (`ir35_compliance`, `switching_accountants`, `tax_efficiency`, `fixed_fee_positioning`), with every raw Perplexity answer logged to `step5_recheck_log.jsonl` rather than just trusting the TRUE/FALSE tag.
 
 **Verdict: go**, with the effective design now **7 clusters (not 8), 36 product questions (not ~60), skewed toward `fixed_fee_positioning` and `general_recommendation` as the clusters with real statistical weight.** This is a smaller, more honest N than originally scoped — the power analysis in Appendix K will need to be read carefully against it, and any published result should show topic-composition sensitivity openly rather than imply more certainty than a 7-unit randomization can support.
 
+**One correction after this table was produced (2026-08-10):** `q001` ("cheapest monthly online accountants uk") was reclassified from `general_recommendation` into `fixed_fee_positioning` — it's a pricing-framing question, not a generic-recommendation one, and belongs with its actual peers (q022-q068). The counts above reflect Day 2's original filter run; from Day 8-9 onward the working split is **`fixed_fee_positioning`: 10, `general_recommendation`: 8.**
+
 ---
 
 ## Timeline reality check
 
-The Day-N labels throughout this plan (and the appendix) mark **sequence, not literal calendar days.** Realistic elapsed time for this build, done part-time, as a first Python project, with unattended infrastructure: **6-8 weeks, not 30 days.** Treat that as the normal baseline, not a sign anything's going wrong. Days 3-5 in particular (writing `rig.py`/`parser.py`/`schema.sql` from scratch, debugging three different SDKs' response shapes) and Day 15 (provisioning and hardening a server, getting cron reliable) are each individually multi-day tasks the first time through — budget accordingly rather than measuring progress against the compressed labels.
+The Day-N labels throughout this plan (and the appendix) mark **sequence, not literal calendar days.** Realistic elapsed time for this build, done part-time, as a first Python project, with unattended infrastructure: **6-8 weeks, not 30 days.** Treat that as the normal baseline, not a sign anything's going wrong. Days 3-5 in particular (writing `rig.py`/`parser.py`/`schema.sql` from scratch, debugging three different SDKs' response shapes) are a multi-day task the first time through — budget accordingly rather than measuring progress against the compressed labels. Day 15's original scope was "provisioning a server, getting cron reliable" — corrected 2026-08-10: there's no cron to make reliable anymore (see the Days 8-30 section below), so Day 15 is now just "stand up the Hetzner box, if you want one, so a checkpoint run isn't lost to a closed laptop lid" — a much smaller task than originally scoped.
 
-*The rest of this plan — Days 3-5 building the rig, Days 6-7 baseline, Week 2's experiment design, Week 3's run, Week 4's analysis and packaging, the failure-modes table — carries over from the general version unchanged in structure. The only substitutions needed throughout are:*
+*Days 3-5 (building the rig) and Days 6-7 (initial baseline validation) carry over from the general version unchanged in structure — only the substitutions below apply. **Day 8 onward is corrected for Mighty's actual numbers below, not unchanged** — the general version's flat run counts, random cohort assignment, and nightly cadence don't hold once real cluster sizes and real per-call costs are known.*
 
 - *Brand: Sorce → **Mighty Accounting***
 - *Competitor set: FastApply/JobCopilot/LoopCV/AIApply/Jobright → **Gorilla, GoForma, Crunch, QAccounting, Caroola/SJD***
 - *Question clusters: auto-apply/swipe-to-apply/mobile job hunting → **IR35, fixed-fee positioning, switching accountants, dividend/tax efficiency, new company setup***
 - *Parser brand-matching: "Sorce" vs "source" ambiguity → **"Mighty" vs the common adjective "mighty" — same category of problem, needs the same Day 5 parser validation, matching on "Mighty Accounting" or "Mighty" in an accountancy-firm context rather than the bare word***
 
-*Full Days 3-30 detail plus all runnable code lives in the companion appendix.*
+*Full Days 3-7 detail plus all runnable code lives in the companion appendix. Days 8-30 detail is below.*
+
+---
+
+## Days 8-30 — corrected for Mighty's actual numbers (2026-08-10)
+
+The "carries over unchanged" note above stopped being accurate once real cluster counts, weighted run allocation, and checkpoint-based cadence replaced the general version's flat assumptions. This section replaces it for everything from cohort assignment onward. Full code and SQL: Appendices H, J, M.
+
+### Day 8-9: Cohort assignment
+
+Deterministic, not random: `fixed_fee_positioning` (10 questions, the diagnosed Day-1 gap — Mighty's own hero copy says "£60pm + VAT," not "fixed fee") → **test**. Everything else → **control**, split by semantic distance from the intervention for interpretation:
+
+| Tier | Clusters | Purpose |
+|---|---|---|
+| Test | `fixed_fee_positioning` (10) | Should move if anything works |
+| Near control | `general_recommendation` (8), `switching_accountants` (5) | May move via genuine spillover — not proof of nothing |
+| Far control | `tax_efficiency` (2), `software_compatibility` (3), `ir35_compliance` (4), `freelancer_agency` (4) | Should stay flat. If these move, that's market drift |
+
+**No holdout tier.** The original design reserved one cluster, permanently unmeasured, as a drift check. Dropped — it costs real N on an already-thin dataset, and the near/far tiering plus a direct spillover check (below) catch the same thing more precisely.
+
+**Decided: staying fully surprise, no early outreach to Mighty.** Homepage/content changes are off the table — only interventions that don't need their cooperation are in play. This sharpens the spillover risk, so it gets real handling below, not just a note.
+
+**Spillover mitigations:**
+1. **Tiered control** (above) instead of one uniform group — lets you tell "moved everywhere" (market drift) from "moved near the intervention" (plausible spillover) from "moved exactly where aimed" (the real signal).
+2. **Narrow the interventions wherever there's discretion**, even without site access: a fixed-fee/small-firm-specific forum thread rather than a generic one, an Instagram post framed around "fixed fee, not a big impersonal firm," "fixed fee" language in any directory listing category/blurb field you control.
+3. **Check for spillover directly, not just inferred.** `cited_urls` is stored as JSON per run. After the after-checkpoint, check whether the exact URLs touched (directory listing, forum thread) show up in near- or far-control citations — provable, not an ambiguous number to argue about. Query in Appendix M.
+
+### Checkpoint 1: baseline — run this before any Week 2 changes, not after
+
+Re-ordered 2026-08-10: this has to happen *before* Week 2's interventions, not be a footnote after them — it's the "before" half of the before/after comparison.
+
+```bash
+python estimate_cost.py baseline   # dry-run first, every time
+python rig.py baseline
+```
+
+**The baseline gate — check this before doing any Week 2 work.** `fixed_fee_positioning`'s N was raised to 10 specifically because a power check (Appendix K) showed the planned interventions might not be strong enough to reach significance depending on where the true baseline lands. Don't find that out for the first time in Week 4. Check pooled **and** per-surface — Day 1 found Mighty present (thinly) on ChatGPT and at genuine zero on Claude and Perplexity, so a flat pooled number can hide a real single-surface effect:
+
+```sql
+-- Pooled
+SELECT ROUND(AVG(brand_mentioned) * 100, 1) AS baseline_pct, COUNT(*) AS n
+FROM runs r JOIN questions q ON q.id = r.question_id
+WHERE q.topic = 'fixed_fee_positioning' AND r.checkpoint = 'baseline' AND r.parse_ok = 1;
+
+-- Per surface
+SELECT r.surface, ROUND(AVG(r.brand_mentioned) * 100, 1) AS baseline_pct, COUNT(*) AS n
+FROM runs r JOIN questions q ON q.id = r.question_id
+WHERE q.topic = 'fixed_fee_positioning' AND r.checkpoint = 'baseline' AND r.parse_ok = 1
+GROUP BY r.surface;
+```
+
+- **At or near 0% on both views** → good news specifically for detectability — proceed to Week 2 as planned.
+- **Above ~5% pooled, or nonzero on one surface specifically** → the no-cooperation intervention list is unlikely to move the pooled number enough to reach significance even at N=10 — but a real per-surface effect could still be worth tracking on its own. Make a real decision here: accept a likely-null (pooled) result and frame the writeup accordingly, push N higher on this cluster (real but diminishing returns — see Appendix K's table), or revisit the "staying fully surprise" call, since site-access interventions are a materially stronger treatment than anything on the current list.
+- Remember the real uncertainty here is wide — Day 1's own data on this question type was n=8, all zero, with a 95% Wilson interval of [0%, 32%]. The real baseline checkpoint (n=100) will tell you something that small a sample couldn't.
+
+### Week 2 (Days 10-14ish): Make the changes, test topic only
+
+Only these are in play, given the surprise decision:
+- Submit Mighty to the directories Day 1 identified as heavily cited: ContractorUK, UmbrellaCompany, LimitedCompanyHelp. Narrow the listing category/blurb toward "fixed fee" / "small firm" language where the submission form allows it.
+- A genuine Instagram post to your own audience, honest word-of-mouth, framed around "fixed fee, not a big impersonal firm."
+- A genuinely relevant, honestly-disclosed forum mention in a fixed-fee/small-firm-specific thread where it's true and adds value — never planted, never a generic "any recommendations" thread if a more specific one exists.
+
+Log every change with a date in the `interventions` table — no change goes unlogged, including small ones.
+
+### Canary checkpoint (partway through the wait period)
+
+A lightweight third data point, not a full replica of baseline/after. Covers every tier (test + near control at N=3, far control at N=2) rather than just the test cluster — full tiering coverage is what makes it useful for early spillover detection, not just a "did the rig still work" smoke test:
+
+```bash
+python estimate_cost.py canary   # ~$12, well under the $15 target
+python rig.py canary
+```
+
+Two things it buys that a pure two-point (baseline/after) design can't: catches a broken rig or a dead API *before* the after-checkpoint budget is spent on it, and gives a real trend point — three snapshots instead of two — so the after-checkpoint isn't the only evidence of what happened.
+
+### Wait period (~1-2 weeks total)
+
+Nothing to actively do outside the canary. AI platforms need time to re-crawl and re-index. Don't re-measure the "after" checkpoint early out of impatience — it'll just show "nothing changed yet" and tell you nothing real.
+
+### Week 3: The "after" run
+
+```bash
+python estimate_cost.py after
+python rig.py after
+```
+
+Same weighted run counts, same cost-optimized settings as baseline. Covers test and control — control gets measured again too, even though nothing was changed there, because that's the whole comparison.
+
+### Week 4: Analysis and writeup
+
+Run Appendix M's checkpoint-keyed queries (baseline/canary/after, not a hardcoded date), the near/far breakdown, the significance test, the framing-tag cut (monthly vs fixed-fee vs annual wording — bonus, directional only, each group is only 3-4 questions), and the direct spillover-URL check. Go through "before you believe anything" honestly — did control move too? is it significant or noise? did the canary trend look consistent with after, or does after look like a one-off? Write it up plainly, including if nothing moved — that's still the deliverable either way.
+
+### Billing caps — revisit before Week 3
+
+Real measured cost across all three checkpoints, using `estimate_cost.py all` after `fixed_fee_positioning`'s N was raised to 10 (see Appendix K — the power check justified the extra spend): **Perplexity ~$4.83, Claude ~$24.15, OpenAI ~$33.81, total ~$63.** The original £15-per-provider cap from Appendix B was set before any of these numbers existed. **Raise Anthropic to £25-30 and OpenAI to £30-35 before the after-checkpoint** — OpenAI's total sits close enough to a lower cap that one high-variance run could trip it mid-checkpoint, the worst possible time to lose one.
+
+Day 30+ (monetization staging) is already fully written below and doesn't need changes — just carries forward as-is.
 
 ---
 

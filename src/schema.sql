@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS runs (
     brand_position    INTEGER,       -- 1 = named first; NULL if absent
     competitors_named TEXT,          -- JSON array
     parse_ok          BOOLEAN DEFAULT 1,
-    error             TEXT
+    error             TEXT,
+    checkpoint        TEXT CHECK (checkpoint IN ('baseline','canary','after'))
 );
 
 -- Log every intervention. This is your experiment audit trail.

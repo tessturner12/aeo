@@ -94,26 +94,37 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Step 6 — Cron (the 3am scheduler).**
+**Step 6 — Checkpoint runs, not a nightly scheduler.**
+
+Corrected 2026-08-10: a nightly `0 3 * * *` cron entry running the full weighted cycle every night for 30 nights was never reconciled against the stated month's budget — real measured cost is ~$18-19 per full cycle, so 30 nights is $500+. Nothing in the analysis needs daily granularity; it needs three deliberate checkpoints. **Do not add a recurring cron entry.** Instead, run manually (or via a one-off `at` job) at each checkpoint:
+
 ```bash
-crontab -e
-```
-Add:
-```
-0 3 * * * cd /home/tess/aeo-rig && /home/tess/aeo-rig/venv/bin/python rig.py >> /home/tess/aeo-rig/logs/cron.log 2>&1
+python estimate_cost.py baseline   # dry-run check first, every time
+python rig.py baseline             # once, after Day 5 validation passes
+
+# ... Day 8-9 cohort assignment, Week 2 interventions, wait a few days ...
+
+python estimate_cost.py canary
+python rig.py canary               # once, partway through the wait period
+
+# ... finish the wait period (1-2 weeks total) ...
+
+python estimate_cost.py after
+python rig.py after                # once, in Week 3
 ```
 
-**Step 7 — Verify it actually ran.**
+If the Hetzner box is still wanted for reliability (so a checkpoint run isn't lost to a closed laptop lid), that's fine — just don't wire a recurring cron entry back in. SSHing in and running each command by hand, or a single `at`-scheduled job per checkpoint, both work.
+
+**Step 7 — Verify a checkpoint actually ran.**
 ```bash
-tail -50 ~/aeo-rig/logs/cron.log
-sqlite3 ~/aeo-rig/aeo.db "SELECT COUNT(*), DATE(ts) FROM runs GROUP BY DATE(ts);"
+sqlite3 ~/aeo-rig/aeo.db "SELECT checkpoint, COUNT(*), DATE(ts) FROM runs GROUP BY checkpoint, DATE(ts);"
 ```
 
 ### Backups
 
 ```bash
-# crontab addition — daily DB snapshot
-30 3 * * * cp /home/tess/aeo-rig/aeo.db /home/tess/backups/aeo-$(date +\%Y\%m\%d).db
+# after each checkpoint run, snapshot manually — no recurring cron needed for 3 total runs
+cp /home/tess/aeo-rig/aeo.db /home/tess/backups/aeo-$(date +\%Y\%m\%d)-$(cat /tmp/last_checkpoint).db
 ```
 
 ```bash
@@ -143,7 +154,7 @@ Three accounts, same as any brand.
 
 ### SET BILLING CAPS. NOW. BEFORE ANY CODE.
 
-Set every provider's spend limit to £15. Not because Mighty's volume will be expensive — it's the same tiny volume as any brand — but because an unattended loop bug at 3am doesn't care whose name is in the config.
+Corrected 2026-08-10, revised again same day after the power analysis pushed `fixed_fee_positioning`'s N from 5 to 10 (see Appendix K): £15 was set before real per-call costs were measured. Web search results dominate token count on both Claude and OpenAI — real measured cost is ~$0.035-0.05/call (Claude, with `max_uses=1`) and ~$0.065-0.10/call (OpenAI, with `search_context_size="low"`, high variance). Current `estimate_cost.py all` total across the three checkpoints: **Perplexity ~$4.83, Claude ~$24.15, OpenAI ~$33.81, grand total ~$63.** **Set Anthropic to £25-30 and OpenAI to £30-35** — OpenAI's total sits close enough to a £25 cap that a single unlucky high-variance run could trip it mid-checkpoint. Perplexity stays cheap; £5-10 is plenty. Run `python estimate_cost.py <mode>` before every real checkpoint regardless of the cap — that's the actual insurance, the cap is just the backstop for a loop bug.
 
 ### `.env` and `.gitignore`
 
@@ -260,7 +271,7 @@ Once you have ~60, read them cold and ask: *would I have typed this while genuin
 | `topic` | text | Cluster slug: `ir35_compliance`, `fixed_fee_positioning` |
 | `tier` | text | `head` / `mid` / `long` |
 | `is_product` | bool | Did named firms appear when tested? |
-| `cohort` | text | `test` / `control` / `holdout` — filled Day 8 |
+| `cohort` | text | `test` / `control` — filled Day 8-9 (no holdout tier — see Appendix J) |
 | `notes` | text | Anything useful |
 
 ### Example rows, using Mighty's actual competitor set and clusters
@@ -487,6 +498,8 @@ Schema is entirely brand-agnostic — same table for Mighty as for anything else
 
 ### Full schema
 
+Corrected 2026-08-10: `cohort` no longer includes `'holdout'` (dropped — see Appendix J) and `runs` gained a `checkpoint` column (see Appendix H).
+
 ```sql
 -- schema.sql
 
@@ -496,7 +509,7 @@ CREATE TABLE IF NOT EXISTS questions (
     topic       TEXT NOT NULL,
     tier        TEXT CHECK (tier IN ('head','mid','long')),
     is_product  BOOLEAN NOT NULL,
-    cohort      TEXT CHECK (cohort IN ('test','control','holdout')),
+    cohort      TEXT CHECK (cohort IN ('test','control')),
     notes       TEXT
 );
 
@@ -513,7 +526,8 @@ CREATE TABLE IF NOT EXISTS runs (
     brand_position    INTEGER,       -- 1 = named first; NULL if absent
     competitors_named TEXT,          -- JSON array
     parse_ok          BOOLEAN DEFAULT 1,
-    error             TEXT
+    error             TEXT,
+    checkpoint        TEXT CHECK (checkpoint IN ('baseline','canary','after'))
 );
 
 -- Log every intervention. This is your experiment audit trail.
@@ -654,25 +668,50 @@ for run_id, answer in sample:
 
 *Referenced from: Days 3-5 — Build the rig*
 
-Full working script, config swapped for Mighty. Read it, then hand it to Claude Code to adapt.
+Built for real 2026-08-10, not just pasted from this appendix — see `src/rig.py` for the current file, and log.md for the full history of what changed and why. The version originally drafted here had three real bugs (a stale/dead OpenAI model past its shutdown date, a Claude response-parsing path that crashed on any search error, a missing import) and one unreconciled design flaw (nightly cron cost vs. the stated month's budget, off by ~25x). All fixed. Current shape:
 
 ```python
 # rig.py
-import os, json, time, sqlite3, random
+import os, sys, json, time, sqlite3, random
 from datetime import datetime
+from pathlib import Path
 import requests
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
 
+from parser import parse_answer
+
 load_dotenv()
 
-BRAND   = "Mighty Accounting"
-N_RUNS  = 5
-DB      = "aeo.db"
+BRAND = "Mighty Accounting"
+DB    = Path(__file__).resolve().parent / "aeo.db"
+
+MODE = sys.argv[1] if len(sys.argv) > 1 else "baseline"
+assert MODE in ("baseline", "canary", "after"), "usage: python rig.py [baseline|canary|after]"
+
+CLAUDE_MODEL  = "claude-sonnet-5"
+OPENAI_MODEL  = "gpt-5.6-terra"
 
 anthropic_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 openai_client    = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# See Appendix J for the cohort/tier rationale.
+TEST_TOPICS         = {"fixed_fee_positioning"}
+NEAR_CONTROL_TOPICS = {"general_recommendation", "switching_accountants"}
+
+BASELINE_AFTER_RUNS = {"fixed_fee_positioning": 10, "general_recommendation": 5}
+DEFAULT_BASELINE_AFTER_RUNS = 3
+CANARY_RUNS_TEST_NEAR = 3
+CANARY_RUNS_FAR       = 2
+
+
+def runs_for_topic(topic):
+    if MODE == "canary":
+        if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
+            return CANARY_RUNS_TEST_NEAR
+        return CANARY_RUNS_FAR
+    return BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
 
 
 # ---------- SURFACES ----------
@@ -694,50 +733,78 @@ def ask_perplexity(question):
 
 
 def ask_claude(question):
-    msg = anthropic_client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=1024,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{"role": "user", "content": question}],
-    )
+    # web_search_tool_result.content is a LIST on success, a SINGLE error
+    # object on failure — never assume it's iterable. max_uses=1 caps
+    # re-searching (real measured cost: ~$0.08-0.10/call unset, ~$0.035-0.05
+    # capped). Bounded pause_turn resumption per Anthropic's documented fix.
+    messages = [{"role": "user", "content": question}]
     text = ""
     urls = []
-    for block in msg.content:
-        if block.type == "text":
-            text += block.text
-            # inline citations attached to this text block, if any
-            for citation in getattr(block, "citations", None) or []:
-                url = getattr(citation, "url", None)
-                if url:
-                    urls.append(url)
-        elif block.type == "web_search_tool_result":
-            # the raw set of pages the tool call returned, cited or not
-            for result in getattr(block, "content", None) or []:
-                url = getattr(result, "url", None)
-                if url:
-                    urls.append(url)
-    return text, list(dict.fromkeys(urls))  # de-duped, order preserved
+
+    for _ in range(3):
+        msg = anthropic_client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=1024,
+            tools=[{
+                "type": "web_search_20250305",
+                "name": "web_search",
+                "max_uses": 1,
+            }],
+            messages=messages,
+        )
+
+        for block in msg.content:
+            if block.type == "text":
+                text += block.text
+                for citation in getattr(block, "citations", None) or []:
+                    url = getattr(citation, "url", None)
+                    if url:
+                        urls.append(url)
+            elif block.type == "web_search_tool_result":
+                content = getattr(block, "content", None)
+                if isinstance(content, list):
+                    for result in content:
+                        url = getattr(result, "url", None)
+                        if url:
+                            urls.append(url)
+
+        if msg.stop_reason != "pause_turn":
+            break
+        messages = [
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": msg.content},
+        ]
+
+    return text, list(dict.fromkeys(urls))
 
 
 def ask_openai(question):
-    resp = openai_client.chat.completions.create(
-        model="gpt-4o-search-preview",
-        messages=[{"role": "user", "content": question}],
+    # Responses API, not chat.completions + gpt-4o-search-preview (dead,
+    # shutdown 2026-07-23). search_context_size="low" is a real cost lever
+    # per OpenAI's docs but high-variance in practice — treat as a mild
+    # average saving, not a guarantee.
+    resp = openai_client.responses.create(
+        model=OPENAI_MODEL,
+        tools=[{"type": "web_search", "search_context_size": "low"}],
+        input=question,
     )
-    message = resp.choices[0].message
     urls = []
-    for annotation in getattr(message, "annotations", None) or []:
-        citation = getattr(annotation, "url_citation", None)
-        url = getattr(citation, "url", None) if citation else None
-        if url:
-            urls.append(url)
-    return message.content, list(dict.fromkeys(urls))
+    for item in getattr(resp, "output", None) or []:
+        if getattr(item, "type", None) != "message":
+            continue
+        for content in getattr(item, "content", None) or []:
+            for annotation in getattr(content, "annotations", None) or []:
+                if getattr(annotation, "type", None) == "url_citation":
+                    url = getattr(annotation, "url", None)
+                    if url:
+                        urls.append(url)
+    return resp.output_text, list(dict.fromkeys(urls))
 
 
 SURFACES = {
     "perplexity": (ask_perplexity, "sonar"),
-    "claude":     (ask_claude,     "claude-sonnet-4-5"),
-    "openai":     (ask_openai,     "gpt-4o-search-preview"),
+    "claude":     (ask_claude,     CLAUDE_MODEL),
+    "openai":     (ask_openai,     OPENAI_MODEL),
 }
 
 
@@ -746,15 +813,17 @@ SURFACES = {
 def run_cycle():
     conn = sqlite3.connect(DB)
     questions = conn.execute(
-        "SELECT id, text FROM questions WHERE is_product = 1"
+        "SELECT id, text, topic FROM questions WHERE is_product = 1"
     ).fetchall()
 
-    print(f"[{datetime.now()}] Starting cycle: "
-          f"{len(questions)} questions x {len(SURFACES)} surfaces x {N_RUNS} runs")
+    total_calls = sum(runs_for_topic(topic) for _, _, topic in questions) * len(SURFACES)
+    print(f"[{datetime.now()}] Starting {MODE} cycle: "
+          f"{len(questions)} questions x {len(SURFACES)} surfaces, weighted -> {total_calls} calls")
 
-    for qid, qtext in questions:
+    for qid, qtext, topic in questions:
+        n_runs = runs_for_topic(topic)
         for surface_name, (fn, model) in SURFACES.items():
-            for run_index in range(N_RUNS):
+            for run_index in range(n_runs):
                 try:
                     answer, urls = fn(qtext)
                     parsed = (parse_answer(answer, BRAND)
@@ -764,8 +833,9 @@ def run_cycle():
                         INSERT INTO runs (
                             question_id, surface, model, run_index, ts,
                             raw_answer, cited_urls, brand_mentioned,
-                            brand_position, competitors_named, parse_ok
-                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                            brand_position, competitors_named, parse_ok,
+                            checkpoint
+                        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (
                         qid, surface_name, model, run_index,
                         datetime.now().isoformat(),
@@ -775,6 +845,7 @@ def run_cycle():
                         parsed.get("brand_position"),
                         json.dumps(parsed.get("competitors_named", [])),
                         parsed.get("parse_ok", True),
+                        MODE,
                     ))
                     conn.commit()
 
@@ -783,16 +854,16 @@ def run_cycle():
                     conn.execute("""
                         INSERT INTO runs (
                             question_id, surface, model, run_index, ts,
-                            raw_answer, parse_ok, error
-                        ) VALUES (?,?,?,?,?,?,?,?)
+                            raw_answer, parse_ok, error, checkpoint
+                        ) VALUES (?,?,?,?,?,?,?,?,?)
                     """, (qid, surface_name, model, run_index,
-                          datetime.now().isoformat(), "", 0, str(e)))
+                          datetime.now().isoformat(), "", 0, str(e), MODE))
                     conn.commit()
 
                 time.sleep(random.uniform(0.5, 1.5))
 
     conn.close()
-    print(f"[{datetime.now()}] Cycle complete")
+    print(f"[{datetime.now()}] {MODE} cycle complete")
 
 
 if __name__ == "__main__":
@@ -803,19 +874,21 @@ if __name__ == "__main__":
 
 **`temperature: 1.0`.** You're measuring the world as real users experience it, including the variance. Don't suppress it.
 
-**try/except around every call.** One blip at 3am shouldn't kill the whole night's cycle.
+**try/except around every call.** One blip shouldn't kill the whole checkpoint.
 
 **`time.sleep` with jitter.** Avoids rate limits, avoids hammering in lockstep.
 
-**Commit per row.** A crash at question 47 shouldn't lose questions 1-46.
+**Commit per row.** A crash at question 30 shouldn't lose the ones before it.
 
 **Errors get a row, not silence.** Ambiguity between "failed" and "never ran" corrupts your denominators.
 
-**Citations come from the platforms themselves, not a separate search call.** `ask_claude` and `ask_openai` now pull the URLs each platform actually used for that specific answer (Claude via `web_search_tool_result`/`citations` blocks, OpenAI via `message.annotations`), the same way `ask_perplexity` already did via its `citations` field. This replaced a fourth "independent" surface (Brave) that turned out to be redundant with Claude's own retrieval anyway — see the note in Appendix B. Response shapes for tool-use/search features shift between SDK versions, so when Claude Code builds this for real, have it verify the exact field names against the current Anthropic and OpenAI docs before trusting the output.
+**Citations come from the platforms themselves, not a separate search call.** `ask_claude` and `ask_openai` pull the URLs each platform actually used for that specific answer (Claude via `web_search_tool_result`/`citations` blocks, OpenAI via `response.output[].content[].annotations`), the same way `ask_perplexity` already did via its `citations` field. This replaced a fourth "independent" surface (Brave) that turned out to be redundant with Claude's own retrieval anyway — see the note in Appendix B.
 
-### Rough runtime
+**`checkpoint` column, `MODE` argv, weighted + tiered run counts.** Replaces the flat `N_RUNS` and nightly cron — see the cost correction above and Appendix J for the cohort tiers.
 
-60 questions × 3 surfaces × 5 runs × ~2s = **~30 minutes**. Fine at 3am.
+### Real cost and runtime (measured, not estimated)
+
+The original "~2s/call, ~30 minutes" estimate assumed plain chat calls. Web search calls are slower and far heavier on tokens than that — real measured cost per call: Perplexity ~$0.01, Claude ~$0.035-0.05 (with `max_uses=1`), OpenAI ~$0.065-0.10 (`search_context_size="low"`, high variance). Run `python estimate_cost.py <mode>` before every real checkpoint to get the current number against the actual question set — don't rely on this appendix's figures staying accurate. As of 2026-08-10 (after `fixed_fee_positioning`'s N was raised to 10 per Appendix K's power check): baseline/after ≈ $25 each, canary ≈ $12, total ≈ $63 across all three. Real time per call is more like 5-15s given search latency — expect 45-75 minutes for baseline/after (582 calls each), less for canary.
 
 ---
 
@@ -919,40 +992,37 @@ ORDER BY day DESC;
 
 *Referenced from: Days 8-9 — Test/control split*
 
-Unchanged mechanics — randomise at the topic level, always.
+**Corrected 2026-08-10 — deterministic, not randomised, and no holdout tier.** The original topic-level random shuffle (7 topics → random split → pop one into holdout) was never actually consistent with putting `fixed_fee_positioning` in test on purpose — a genuine random shuffle doesn't guarantee that. And a dedicated holdout cluster, permanently unused, wasn't worth the N it costs on a dataset this thin: the near/far control tiering below plus the direct cited-URL spillover check (Appendix M) cover what holdout was for, more precisely.
 
 ```python
-import random, sqlite3
+import sqlite3
 
-random.seed(42)
+TEST_TOPICS = {"fixed_fee_positioning"}
 
 conn = sqlite3.connect("aeo.db")
 topics = [r[0] for r in conn.execute(
     "SELECT DISTINCT topic FROM questions WHERE is_product = 1"
 ).fetchall()]
 
-random.shuffle(topics)
-mid = len(topics) // 2
-test, control = topics[:mid], topics[mid:]
-holdout = [control.pop()] if len(control) > 2 else []
-
-print(f"TEST:    {test}")
-print(f"CONTROL: {control}")
-print(f"HOLDOUT: {holdout}")
-
-for topic in test:
-    conn.execute("UPDATE questions SET cohort='test' WHERE topic=?", (topic,))
-for topic in control:
-    conn.execute("UPDATE questions SET cohort='control' WHERE topic=?", (topic,))
-for topic in holdout:
-    conn.execute("UPDATE questions SET cohort='holdout' WHERE topic=?", (topic,))
+for topic in topics:
+    cohort = "test" if topic in TEST_TOPICS else "control"
+    conn.execute("UPDATE questions SET cohort=? WHERE topic=?", (cohort, topic))
 
 conn.commit()
+print(conn.execute(
+    "SELECT cohort, topic, COUNT(*) FROM questions WHERE is_product=1 GROUP BY cohort, topic"
+).fetchall())
 ```
 
-With Mighty's **actual surviving clusters** — `new_company_setup` had zero product questions survive Day 2 Step 5 (0/7), so it will never appear in this query at all; the real set is 7 clusters, not 8 (general_recommendation, ir35_compliance, fixed_fee_positioning, switching_accountants, tax_efficiency, software_compatibility, freelancer_agency) — a sensible split puts `fixed_fee_positioning` — Mighty's clearest differentiator, and at 9 surviving questions its largest cluster — in the **test** group, since that's where an intervention is most likely to land and where there's enough N to actually detect one.
+With Mighty's **actual surviving clusters** — `new_company_setup` had zero product questions survive Day 2 Step 5 (0/7), so it never appears in this query; the real set is 7 clusters, not 8 (general_recommendation, ir35_compliance, fixed_fee_positioning, switching_accountants, tax_efficiency, software_compatibility, freelancer_agency). `fixed_fee_positioning` — Mighty's clearest differentiator, and (after reclassifying q001 out of `general_recommendation`, since "cheapest monthly online accountants uk" is a pricing-framing question, not a generic-recommendation one) its largest cluster at 10 questions — goes in **test**, since that's both where an intervention is most likely to land and where there's enough N to detect one. Everything else is **control**, split for interpretation into near/far tiers by semantic distance from the intervention:
 
-**Weight run allocation toward the clusters that can support a claim, not evenly.** The real per-cluster counts are lopsided (`fixed_fee_positioning` and `general_recommendation` at 9 each; `tax_efficiency` down to 2). Running N=5 identically across every cluster spends real budget generating a cell (`tax_efficiency`) too thin to ever produce a usable confidence interval, while under-running the clusters that could actually support one. Consider N=8-10 on `fixed_fee_positioning`/`general_recommendation` and accepting N=5 or even less on the thin clusters as directional-only, rather than treating N=5-everywhere as a fixed rule.
+| Tier | Clusters | Purpose |
+|---|---|---|
+| Test | `fixed_fee_positioning` (10) | Where the effort is aimed — should move if anything works |
+| Near control | `general_recommendation` (8), `switching_accountants` (5) | Semantically close to "best accountant" listings — may move via genuine spillover, not proof of nothing |
+| Far control | `tax_efficiency` (2), `software_compatibility` (3), `ir35_compliance` (4), `freelancer_agency` (4) | Should stay flat. If these move too, that's market drift, not you |
+
+**Weight run allocation toward the clusters that can support a claim, not evenly.** `fixed_fee_positioning` (10) and `general_recommendation` (8) can support a real confidence interval; `tax_efficiency` (2) never will, no matter how many times it's run. `rig.py`'s `BASELINE_AFTER_RUNS` gives `fixed_fee_positioning` N=10 (raised from N=5 after Appendix K's power check showed N=5 gave the planned interventions well under 50% power in realistic scenarios), `general_recommendation` N=5, and N=3 to everything else — directional-only on the thin clusters, by design, not an oversight.
 
 ---
 
@@ -960,7 +1030,56 @@ With Mighty's **actual surviving clusters** — `new_company_setup` had zero pro
 
 *Referenced from: Day 10 — The power calculation*
 
-Unchanged mechanics.
+**Actually run 2026-08-10, not left as "unchanged mechanics."** `statsmodels` (this script's own dependency) wasn't even in `requirements.txt` — it would have failed on import the first time anyone tried to run it. Fixed. More importantly: ran it against realistic Day-1-derived baseline assumptions instead of leaving the power question unexamined until real data existed.
+
+### What the numbers actually said
+
+Day 1's manual check found Mighty **absent** from the exact question type that is now the test cluster ("fixed-fee accountant, not a big impersonal firm") — so a true baseline near 0% on `fixed_fee_positioning` specifically is plausible, though the aggregate rate across all question types was higher than zero. At the original N=5 (n=50), the picture was baseline-dependent in a way that mattered: if true baseline is ~0%, even a modest result (5/50 citations after) clears significance — a true zero is easy to move away from statistically. But if baseline sits anywhere in the realistic 4-10% range, detecting a generous +10pp lift from three weak, cooperation-free interventions (a directory listing, one Instagram post, one forum mention — no site access) had only **29-56% power** — worse than a coin flip in the worse cases.
+
+**Changed as a result: `fixed_fee_positioning`'s N went from 5 to 10** (`rig.py`'s `BASELINE_AFTER_RUNS`). That raises power for a +10pp lift to 52-85% across the same baseline range, for about +$13 total across baseline and after. Cheap, and worth it — see the real cost in Appendix B's billing section.
+
+```python
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
+
+analysis = NormalIndPower()
+for n_per_q in [5, 10]:
+    n = n_per_q * 10  # fixed_fee_positioning question count
+    for p0 in [0.02, 0.05, 0.10]:
+        p1 = p0 + 0.10  # the +10pp lift a weak, cooperation-free intervention might plausibly produce
+        es = proportion_effectsize(p1, p0)
+        power = analysis.power(effect_size=es, nobs1=n, alpha=0.05, ratio=1.0)
+        print(f"N={n_per_q}/q, baseline={p0:.0%} -> +10pp lift: power={power:.0%}")
+```
+
+### Two things caught in cross-checking this with a second model (2026-08-10) — both real, both fixed
+
+**The "how much lift is needed" number depends on which question you're asking.** "What's the smallest after-the-fact result that would look significant?" (~12pp at baseline 4%) and "what true effect do I need for an 80% *chance* of detecting it given sampling noise?" (~18-19pp at baseline 5%) are different, both-valid statistics — the first is optimistic and only useful for interpreting a result after it happens, the second is the right one for planning N in advance, which is what this appendix is for. Use the 80%-power framing when deciding whether the design can work; don't be surprised if a post-hoc check produces a smaller-sounding number for the same data.
+
+**Every query below pools all three surfaces into one rate — and Day 1's own evidence says that's risky.** Day 1 found Mighty present (thinly) on ChatGPT and at genuine zero on Claude, Perplexity, and Gemini — not a uniform low rate, three structurally different platforms. Pooling them into one binomial test can dilute a real, detectable single-surface effect into pooled noise, or misrepresent what "baseline" even means. Appendix I's descriptive `SoA by topic × surface` query already breaks this out; the significance/power queries below didn't, until now. Check both pooled and per-surface — don't rely on pooled alone.
+
+### The baseline gate — check this before Week 2, not after Week 4
+
+Don't wait until the final analysis to find out whether the design could ever have worked. **Immediately after the baseline checkpoint runs, before spending any Week 2 effort**, check the actual observed rate — pooled and per-surface:
+
+```sql
+-- Pooled (the headline number)
+SELECT ROUND(AVG(brand_mentioned) * 100, 1) AS baseline_pct, COUNT(*) AS n
+FROM runs r JOIN questions q ON q.id = r.question_id
+WHERE q.topic = 'fixed_fee_positioning' AND r.checkpoint = 'baseline' AND r.parse_ok = 1;
+
+-- Per surface — check this too. A real signal on one platform can hide inside a flat pooled number.
+SELECT r.surface, ROUND(AVG(r.brand_mentioned) * 100, 1) AS baseline_pct, COUNT(*) AS n
+FROM runs r JOIN questions q ON q.id = r.question_id
+WHERE q.topic = 'fixed_fee_positioning' AND r.checkpoint = 'baseline' AND r.parse_ok = 1
+GROUP BY r.surface;
+```
+
+- **At or near 0% on both views** → good news for detectability specifically — even a small real result will likely show up as significant. Proceed as planned.
+- **Above ~5% pooled, or meaningfully nonzero on one surface** → the planned interventions are unlikely to move the pooled number enough to reach significance at N=10, given the power numbers above — but check whether the effort should instead be evaluated per-surface if one platform is carrying most of the baseline presence. Worth a real decision at that point, not a silent hope: accept that a null (or per-surface-only) result is the likely honest outcome and frame the writeup accordingly, push N higher still (diminishing but real returns — see the table above), or revisit the "staying fully surprise" decision from Day 8-9 since site-access interventions are a fundamentally stronger treatment than anything on the no-cooperation list.
+- **Remember the actual uncertainty here is wide.** Day 1's own data on this exact question type was 2 runs × 4 platforms, all zero (n=8) — a 95% Wilson interval on that is [0%, 32%], not a tight "probably near zero." The baseline checkpoint's real n=100 will tell you something Day 1's 8 observations couldn't.
+
+### Original mechanics (per-topic/cohort, run against real data once `runs` has rows)
 
 ```python
 # power.py
@@ -1071,34 +1190,123 @@ Binary gate, not an optimization. Check once, move on.
 
 *Referenced from: Days 22-25 — Analysis*
 
-Unchanged mechanics — dates below are placeholders, adjust to your actual Day 15 intervention date.
+**Corrected 2026-08-10.** Keyed on the `checkpoint` column (`'baseline'`, `'canary'`, `'after'`) instead of a hardcoded date threshold — the date-cutoff approach was brittle (one typo and "before" answers land in "after"); the explicit column can't drift out of sync with when a checkpoint actually ran. Three checkpoints also means a real trend line, not just two snapshots — worth plotting all three, not just before/after.
+
+**Also corrected the same day, caught cross-checking this appendix with a second model:** every query in this section pools all three surfaces into one rate. Day 1 found Mighty present (thinly) on ChatGPT and at genuine zero on Claude and Perplexity — not a uniform low rate. Pooling risks diluting a real single-surface effect into noise, or averaging together three platforms that don't actually behave the same way. **Run the per-surface version alongside the pooled one, always** — don't trust the pooled number in isolation. Appendix K's baseline gate now does this too.
 
 ### The only chart that matters
 
 ```sql
+-- Pooled (the headline comparison)
+SELECT
+    q.cohort,
+    r.checkpoint,
+    ROUND(AVG(r.brand_mentioned) * 100, 1) AS soa_pct,
+    COUNT(*) AS n
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1
+GROUP BY q.cohort, r.checkpoint
+ORDER BY q.cohort, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'canary' THEN 2 WHEN 'after' THEN 3 END;
+
+-- Per surface — check this before trusting the pooled number above
+SELECT
+    q.cohort,
+    r.surface,
+    r.checkpoint,
+    ROUND(AVG(r.brand_mentioned) * 100, 1) AS soa_pct,
+    COUNT(*) AS n
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1
+GROUP BY q.cohort, r.surface, r.checkpoint
+ORDER BY q.cohort, r.surface, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'canary' THEN 2 WHEN 'after' THEN 3 END;
+```
+
+Baseline → after delta, if you just want the headline number:
+
+```sql
 WITH periods AS (
-    SELECT
-        q.cohort,
-        CASE WHEN DATE(r.ts) < '2026-09-08' THEN 'before' ELSE 'after' END AS period,
-        AVG(r.brand_mentioned) AS soa,
-        COUNT(*)               AS n
+    SELECT q.cohort, r.checkpoint, AVG(r.brand_mentioned) AS soa
     FROM runs r
     JOIN questions q ON q.id = r.question_id
-    WHERE r.parse_ok = 1
-      AND q.cohort IN ('test','control')
-    GROUP BY q.cohort, period
+    WHERE r.parse_ok = 1 AND r.checkpoint IN ('baseline','after')
+    GROUP BY q.cohort, r.checkpoint
 )
 SELECT
     cohort,
-    MAX(CASE WHEN period='before' THEN ROUND(soa*100,1) END) AS soa_before,
-    MAX(CASE WHEN period='after'  THEN ROUND(soa*100,1) END) AS soa_after,
+    MAX(CASE WHEN checkpoint='baseline' THEN ROUND(soa*100,1) END) AS soa_baseline,
+    MAX(CASE WHEN checkpoint='after'    THEN ROUND(soa*100,1) END) AS soa_after,
     ROUND(
-        MAX(CASE WHEN period='after' THEN soa END) -
-        MAX(CASE WHEN period='before' THEN soa END), 4
+        MAX(CASE WHEN checkpoint='after' THEN soa END) -
+        MAX(CASE WHEN checkpoint='baseline' THEN soa END), 4
     ) * 100 AS delta_pp
 FROM periods
 GROUP BY cohort;
 ```
+
+### Near/far control breakdown — is the spillover risk showing up?
+
+`cohort='control'` alone hides whether movement is concentrated in the semantically-close cluster (expected spillover) or spread into clusters that should be untouched (a real problem). Break it out by topic tier:
+
+```sql
+SELECT
+    CASE
+        WHEN q.topic = 'fixed_fee_positioning' THEN 'test'
+        WHEN q.topic IN ('general_recommendation','switching_accountants') THEN 'near_control'
+        ELSE 'far_control'
+    END AS tier,
+    r.checkpoint,
+    ROUND(AVG(r.brand_mentioned) * 100, 1) AS soa_pct,
+    COUNT(*) AS n
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1
+GROUP BY tier, r.checkpoint
+ORDER BY tier, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'canary' THEN 2 WHEN 'after' THEN 3 END;
+```
+
+Far control moving as much as test → market drift, not you. Near control moving but far control flat → plausible spillover, treat the test-vs-near-control comparison as softer evidence than test-vs-far-control.
+
+### Framing cut — fixed fee vs monthly vs annual wording
+
+Bonus, not the primary read — each framing group is only 3-4 questions, thinner than any full cluster. Directional only.
+
+```sql
+SELECT
+    CASE
+        WHEN q.notes LIKE '%framing:monthly%'   THEN 'monthly'
+        WHEN q.notes LIKE '%framing:fixed_fee%' THEN 'fixed_fee'
+        WHEN q.notes LIKE '%framing:annual%'    THEN 'annual'
+        ELSE 'other'
+    END AS framing,
+    r.checkpoint,
+    ROUND(AVG(r.brand_mentioned) * 100, 1) AS soa_pct,
+    COUNT(*) AS n
+FROM runs r
+JOIN questions q ON q.id = r.question_id
+WHERE r.parse_ok = 1 AND q.topic = 'fixed_fee_positioning'
+GROUP BY framing, r.checkpoint
+ORDER BY framing, CASE r.checkpoint WHEN 'baseline' THEN 1 WHEN 'canary' THEN 2 WHEN 'after' THEN 3 END;
+```
+
+The hypothesis this tests directly: Mighty's own hero copy already says "£60pm + VAT" (monthly-framed), but not "fixed fee." Predict `monthly` sits higher at baseline and moves *less* after the intervention; `fixed_fee` and `annual` sit lower at baseline and move *more*, since that's the actual gap being closed.
+
+### Spillover check — direct evidence, not inference
+
+Don't just infer spillover from whether near-control's number moved — check whether the actual URL you touched (the directory listing, the forum thread) shows up in a control cluster's citations:
+
+```sql
+SELECT r.question_id, q.topic, url.value AS cited_url
+FROM runs r
+JOIN questions q ON q.id = r.question_id,
+     json_each(r.cited_urls) AS url
+WHERE r.checkpoint = 'after'
+  AND q.topic != 'fixed_fee_positioning'
+  AND url.value IN (SELECT url FROM interventions WHERE url IS NOT NULL);
+```
+
+Matches in `general_recommendation`/`switching_accountants` (near control) only → spillover as expected, treat that comparison as softer evidence. Matches in the far-control topics too → something's off, investigate before writing up. No matches anywhere → the tiering held, test-vs-control is a cleaner read.
 
 ### How to read it
 
@@ -1127,27 +1335,30 @@ else:
     print("Not significant. Report that plainly.")
 ```
 
+**Run this twice** — once on the pooled `test_hits_after`/`control_hits_after` counts, once per surface (using the per-surface query above to get each surface's counts). Given Day 1's evidence of real per-platform heterogeneity, a pooled non-significant result doesn't rule out a real, significant effect on one surface specifically — check both before writing "not significant" as the final word.
+
 ### Per-topic breakdown
 
 ```sql
 SELECT
     q.topic,
     q.cohort,
-    ROUND(AVG(CASE WHEN DATE(r.ts) <  '2026-09-08' THEN r.brand_mentioned END) * 100, 1) AS before_pct,
-    ROUND(AVG(CASE WHEN DATE(r.ts) >= '2026-09-08' THEN r.brand_mentioned END) * 100, 1) AS after_pct
+    ROUND(AVG(CASE WHEN r.checkpoint = 'baseline' THEN r.brand_mentioned END) * 100, 1) AS baseline_pct,
+    ROUND(AVG(CASE WHEN r.checkpoint = 'canary'   THEN r.brand_mentioned END) * 100, 1) AS canary_pct,
+    ROUND(AVG(CASE WHEN r.checkpoint = 'after'    THEN r.brand_mentioned END) * 100, 1) AS after_pct
 FROM runs r
 JOIN questions q ON q.id = r.question_id
 WHERE r.parse_ok = 1
 GROUP BY q.topic, q.cohort
-ORDER BY q.cohort, after_pct - before_pct DESC;
+ORDER BY q.cohort, after_pct - baseline_pct DESC;
 ```
 
 ### Before you believe anything
 
-- [ ] Did control move too? (If yes → market, not you)
-- [ ] Is it significant, or noise? (Run the test)
-- [ ] Was the power calc satisfied? (Could you even detect this?)
-- [ ] Did the holdout set move? (If yes → ambient drift)
+- [ ] Did control move too? (If yes → market, not you. Check near/far separately — see above.)
+- [ ] Is it significant, or noise? (Run the test — pooled AND per-surface, not pooled alone)
+- [ ] Was the power calc satisfied? (Could you even detect this? Check which framing you're using — "would this exact result look significant" and "80%-power MDE" are different, both-valid numbers — see Appendix K)
+- [ ] Did the canary checkpoint show a consistent trend, or does after look like a one-off? (No holdout tier in this design — the canary checkpoint plus the direct spillover-URL check are what catch ambient drift instead)
 - [ ] Does it reproduce on a fresh sample? (Re-run it)
 - [ ] Are you reporting absolute, not relative?
 - [ ] Would you defend this at Amazon in a design review?
