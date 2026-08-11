@@ -154,7 +154,7 @@ Three accounts, same as any brand.
 
 ### SET BILLING CAPS. NOW. BEFORE ANY CODE.
 
-Corrected 2026-08-10, revised again same day after the power analysis pushed `fixed_fee_positioning`'s N from 5 to 10 (see Appendix K): £15 was set before real per-call costs were measured. Web search results dominate token count on both Claude and OpenAI — real measured cost is ~$0.035-0.05/call (Claude, with `max_uses=1`) and ~$0.065-0.10/call (OpenAI, with `search_context_size="low"`, high variance). Current `estimate_cost.py all` total across the three checkpoints: **Perplexity ~$4.83, Claude ~$24.15, OpenAI ~$33.81, grand total ~$63.** **Set Anthropic to £25-30 and OpenAI to £30-35** — OpenAI's total sits close enough to a £25 cap that a single unlucky high-variance run could trip it mid-checkpoint. Perplexity stays cheap; £5-10 is plenty. Run `python estimate_cost.py <mode>` before every real checkpoint regardless of the cap — that's the actual insurance, the cap is just the backstop for a loop bug.
+Corrected repeatedly the same week as real numbers changed each time: £15 was set before any real per-call costs were measured; revised to £25-30/£30-35 after the power analysis raised `fixed_fee_positioning` to N=10; revised again after the 8 matched pairs pushed the total to ~$83.59; **now settling lower again, 2026-08-11, after the far-control default (3→2) and Claude run-count cap brought real cost down.** Current `estimate_cost.py all` total across the three checkpoints: **Perplexity ~$6.07, Claude ~$18.55, OpenAI ~$42.49, grand total ~$67.11.** **Set Anthropic to £20-25 and OpenAI to £40-45** — Claude's cost dropped enough to lower its cap; OpenAI wasn't touched by either reduction lever, so its cap stays close to where it was. Perplexity stays cheap; £5-10 is plenty. Run `python estimate_cost.py <mode>` before every real checkpoint regardless of the cap — that's the actual insurance, the cap is just the backstop for a loop bug, and this number has now moved four times in two days.
 
 ### `.env` and `.gitignore`
 
@@ -728,16 +728,22 @@ DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
 CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
 CANARY_RUNS_FAR       = _config["canary_runs_far"]
 PRIMARY_SURFACE       = _config["primary_surface"]
+SURFACE_RUN_CAPS      = _config.get("surface_run_caps", {})
 
 
-def runs_for_topic(topic):
+def runs_for_topic(topic, surface=None):
     if MODE == "canary":
         if topic in MATCHED_PAIR_TOPICS:
-            return 0  # matched pairs run at baseline/after only — see config.yaml
-        if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
-            return CANARY_RUNS_TEST_NEAR
-        return CANARY_RUNS_FAR
-    return BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+            n = 0  # matched pairs run at baseline/after only — see config.yaml
+        elif topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
+            n = CANARY_RUNS_TEST_NEAR
+        else:
+            n = CANARY_RUNS_FAR
+    else:
+        n = BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+
+    cap = SURFACE_RUN_CAPS.get(surface)
+    return min(n, cap) if cap is not None else n
 
 
 # ---------- SURFACES ----------
@@ -842,13 +848,17 @@ def run_cycle():
         "SELECT id, text, topic FROM questions WHERE is_product = 1"
     ).fetchall()
 
-    total_calls = sum(runs_for_topic(topic) for _, _, topic in questions) * len(SURFACES)
+    total_calls = sum(
+        runs_for_topic(topic, surface_name)
+        for _, _, topic in questions
+        for surface_name in SURFACES
+    )
     print(f"[{datetime.now()}] Starting {MODE} cycle: "
           f"{len(questions)} questions x {len(SURFACES)} surfaces, weighted -> {total_calls} calls")
 
     for qid, qtext, topic in questions:
-        n_runs = runs_for_topic(topic)
         for surface_name, (fn, model) in SURFACES.items():
+            n_runs = runs_for_topic(topic, surface_name)
             for run_index in range(n_runs):
                 try:
                     answer, urls = fn(qtext)
@@ -916,7 +926,31 @@ if __name__ == "__main__":
 
 ### Real cost and runtime (measured, not estimated)
 
-The original "~2s/call, ~30 minutes" estimate assumed plain chat calls. Web search calls are slower and far heavier on tokens than that — real measured cost per call: Perplexity ~$0.01, Claude ~$0.035-0.05 (with `max_uses=1`), OpenAI ~$0.065-0.10 (`search_context_size="low"`, high variance). Run `python estimate_cost.py <mode>` before every real checkpoint to get the current number against the actual question set — don't rely on this appendix's figures staying accurate. As of 2026-08-10 (after `fixed_fee_positioning`'s N raised to 10 per Appendix K's power check, and the 8 matched pairs added per the external-review corrections): **baseline/after ≈ $35.62 each (822 calls), canary ≈ $12.35 (285 calls, matched pairs excluded), total ≈ $83.59 across all three.** Real time per call is more like 5-15s given search latency — expect **75-226 minutes (up to ~3.8hr) for baseline/after**, less for canary.
+The original "~2s/call, ~30 minutes" estimate assumed plain chat calls. Web search calls are slower and far heavier on tokens than that — real measured cost per call: Perplexity ~$0.01, Claude ~$0.035-0.05 (with `max_uses=1`), OpenAI ~$0.065-0.10 (`search_context_size="low"`, high variance). Run `python estimate_cost.py <mode>` before every real checkpoint to get the current number against the actual question set — don't rely on this appendix's figures staying accurate. As of 2026-08-11 (after `fixed_fee_positioning`'s N raised to 10 per Appendix K's power check, the 8 matched pairs added, and — the same day — the far-control default dropped 3→2 plus a Claude run-count cap added, both explained below): **baseline/after ≈ $27.38 each (650 calls), canary ≈ $12.35 (285 calls, matched pairs excluded), total ≈ $67.11 across all three** — down from $83.59 the day before, with no loss of statistical power on anything the primary analysis depends on. Real time per call is more like 5-15s given search latency — expect **60-179 minutes (up to ~3hr) for baseline/after**, less for canary.
+
+### Cost reduction, 2026-08-11 — two levers, neither touches what the outcome depends on
+
+Asked directly whether cost could come down without affecting credibility or the delivered analysis. Both levers below are cuts to data that was never going to carry the primary conclusion:
+
+1. **Far-control default dropped 3→2** (`config.yaml`'s `default_baseline_after_runs`). Applies to `switching_accountants`, `ir35_compliance`, `freelancer_agency`, `software_compatibility`, `tax_efficiency` — already documented (Appendix J) as "directional only, can never support a real CI regardless of N." N=2 still averages one-off noise; the claim these clusters could ever support hasn't changed.
+2. **Claude capped at N=3** (`config.yaml`'s `surface_run_caps`), applied as a ceiling — it only lowers a topic's Claude allocation, never raises it above whatever the other surfaces already get. Claude is the pre-registered *secondary* surface (no p-value depends on it — see the primary-surface pre-registration below) and has the weakest measured intervention mechanism of the three (0/5 Reddit, 2/5 directories, Day-1 sample) — the surface least likely to show a real signal from the planned interventions is the defensible place to spend less. Perplexity (primary) and OpenAI (Mighty's only real Day-1 presence) are untouched.
+
+`runs_for_topic()` now takes a `surface` argument and applies `SURFACE_RUN_CAPS` as a `min()` — never raises, only lowers:
+
+```python
+def runs_for_topic(topic, surface=None):
+    if MODE == "canary":
+        if topic in MATCHED_PAIR_TOPICS:
+            n = 0
+        elif topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
+            n = CANARY_RUNS_TEST_NEAR
+        else:
+            n = CANARY_RUNS_FAR
+    else:
+        n = BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+    cap = SURFACE_RUN_CAPS.get(surface)
+    return min(n, cap) if cap is not None else n
+```
 
 ---
 

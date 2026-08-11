@@ -34,6 +34,7 @@ BASELINE_AFTER_RUNS = _config["baseline_after_runs"]
 DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
 CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
 CANARY_RUNS_FAR       = _config["canary_runs_far"]
+SURFACE_RUN_CAPS      = _config.get("surface_run_caps", {})
 
 PER_CALL_ESTIMATE = {
     "perplexity": 0.01,
@@ -42,14 +43,19 @@ PER_CALL_ESTIMATE = {
 }
 
 
-def runs_for_topic(topic, mode):
+def runs_for_topic(topic, mode, surface=None):
     if mode == "canary":
         if topic in MATCHED_PAIR_TOPICS:
-            return 0
-        if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
-            return CANARY_RUNS_TEST_NEAR
-        return CANARY_RUNS_FAR
-    return BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+            n = 0
+        elif topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
+            n = CANARY_RUNS_TEST_NEAR
+        else:
+            n = CANARY_RUNS_FAR
+    else:
+        n = BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+
+    cap = SURFACE_RUN_CAPS.get(surface)
+    return min(n, cap) if cap is not None else n
 
 
 def estimate(mode):
@@ -63,8 +69,8 @@ def estimate(mode):
     per_surface_calls = {s: 0 for s in PER_CALL_ESTIMATE}
 
     for _, topic in rows:
-        n = runs_for_topic(topic, mode)
         for surface, per_call in PER_CALL_ESTIMATE.items():
+            n = runs_for_topic(topic, mode, surface)
             per_surface_calls[surface] += n
             total_calls += n
             total_cost += n * per_call

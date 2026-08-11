@@ -25,13 +25,40 @@ baseline_after_runs:
   general_recommendation: 5
   matched_pair_treatment: 5
   matched_pair_control: 5
-default_baseline_after_runs: 3
+# 2026-08-11: dropped 3->2. These are the far-control-tier default clusters
+# (switching_accountants, ir35_compliance, freelancer_agency,
+# software_compatibility, tax_efficiency) — already documented throughout
+# as "directional only, can never support a real CI regardless of N" (see
+# Appendix J). N=2 still averages one-off noise; the analytical claim these
+# clusters can support is unchanged. Saves ~$4.68 across baseline+after.
+default_baseline_after_runs: 2
 
 # Canary checkpoint run counts.
 canary_runs_test_near: 3
 canary_runs_far: 2
 
 # Pre-registered primary surface (Appendix K/M) — dated 2026-08-10, before
-# the baseline checkpoint runs. Perplexity has the strongest measured
-# intervention mechanism (Day 1: 4/5 directories, 4/5 Reddit cited).
+# the baseline checkpoint runs. NOT because Perplexity has the single
+# strongest intervention mechanism — Day 1 data shows ChatGPT ties or
+# slightly beats it (5/5 Reddit vs 4/5, tied 4/5 on directories). Perplexity
+# wins on the COMBINATION: comparable mechanism (4/5 directories, 4/5
+# Reddit) plus a genuine zero baseline (Mighty cited 0/5 times), vs
+# ChatGPT's already-nonzero baseline (1/5). A true zero is the statistically
+# easiest starting point to detect a real lift from; ChatGPT's existing
+# presence needs a proportionally bigger lift to reach the same
+# significance. Claude also starts at zero but has almost no mechanism
+# (0/5 Reddit, 2/5 directories) to produce movement in the first place.
 primary_surface: perplexity
+
+# 2026-08-11: Claude is the pre-registered SECONDARY surface (Appendix K/M
+# — no p-value depends on it) and has the weakest measured intervention
+# mechanism of the three (0/5 Reddit, 2/5 directories, Day-1 sample). Cap
+# its run count instead of giving it the same weighted N as Perplexity/
+# OpenAI — it's the surface least likely to show a real signal from the
+# planned interventions, so it's the defensible place to spend less.
+# Applied as a ceiling (never raises a topic's N, only lowers it) — see
+# rig.py's runs_for_topic(). Saves ~$11.80 more on top of the reduction
+# above. Perplexity (primary) and OpenAI (Mighty's only real Day-1
+# presence) are untouched.
+surface_run_caps:
+  claude: 3

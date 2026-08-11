@@ -50,16 +50,22 @@ DEFAULT_BASELINE_AFTER_RUNS = _config["default_baseline_after_runs"]
 CANARY_RUNS_TEST_NEAR = _config["canary_runs_test_near"]
 CANARY_RUNS_FAR       = _config["canary_runs_far"]
 PRIMARY_SURFACE       = _config["primary_surface"]
+SURFACE_RUN_CAPS      = _config.get("surface_run_caps", {})
 
 
-def runs_for_topic(topic):
+def runs_for_topic(topic, surface=None):
     if MODE == "canary":
         if topic in MATCHED_PAIR_TOPICS:
-            return 0  # matched pairs run at baseline/after only — see config.yaml
-        if topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
-            return CANARY_RUNS_TEST_NEAR
-        return CANARY_RUNS_FAR
-    return BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+            n = 0  # matched pairs run at baseline/after only — see config.yaml
+        elif topic in TEST_TOPICS or topic in NEAR_CONTROL_TOPICS:
+            n = CANARY_RUNS_TEST_NEAR
+        else:
+            n = CANARY_RUNS_FAR
+    else:
+        n = BASELINE_AFTER_RUNS.get(topic, DEFAULT_BASELINE_AFTER_RUNS)
+
+    cap = SURFACE_RUN_CAPS.get(surface)
+    return min(n, cap) if cap is not None else n
 
 
 # ---------- SURFACES ----------
@@ -192,14 +198,18 @@ def run_cycle():
         "SELECT id, text, topic FROM questions WHERE is_product = 1"
     ).fetchall()
 
-    total_calls = sum(runs_for_topic(topic) for _, _, topic in questions) * len(SURFACES)
+    total_calls = sum(
+        runs_for_topic(topic, surface_name)
+        for _, _, topic in questions
+        for surface_name in SURFACES
+    )
     print(f"[{datetime.now()}] Starting {MODE} cycle: "
           f"{len(questions)} questions x {len(SURFACES)} surfaces, "
           f"weighted runs -> {total_calls} calls")
 
     for qid, qtext, topic in questions:
-        n_runs = runs_for_topic(topic)
         for surface_name, (fn, model) in SURFACES.items():
+            n_runs = runs_for_topic(topic, surface_name)
             for run_index in range(n_runs):
                 try:
                     answer, urls = fn(qtext)
