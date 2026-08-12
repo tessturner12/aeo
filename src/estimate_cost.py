@@ -58,24 +58,50 @@ def runs_for_topic(topic, mode, surface=None):
     return min(n, cap) if cap is not None else n
 
 
+def already_done(conn, checkpoint):
+    """Mirrors rig.py's skip check, so a dry run after a partial/resumed
+    run reports the cost of what's actually left to call, not the full
+    checkpoint cost again."""
+    rows = conn.execute(
+        "SELECT question_id, surface, run_index FROM runs "
+        "WHERE checkpoint = ? AND parse_ok = 1",
+        (checkpoint,),
+    ).fetchall()
+    return set(rows)
+
+
 def estimate(mode):
     conn = sqlite3.connect(DB)
     rows = conn.execute(
         "SELECT id, topic FROM questions WHERE is_product = 1"
     ).fetchall()
 
+    done = already_done(conn, mode)
+
     total_calls = 0
     total_cost = 0.0
     per_surface_calls = {s: 0 for s in PER_CALL_ESTIMATE}
 
-    for _, topic in rows:
+    for qid, topic in rows:
         for surface, per_call in PER_CALL_ESTIMATE.items():
             n = runs_for_topic(topic, mode, surface)
-            per_surface_calls[surface] += n
-            total_calls += n
-            total_cost += n * per_call
+            remaining = sum(
+                1 for run_index in range(n)
+                if (qid, surface, run_index) not in done
+            )
+            per_surface_calls[surface] += remaining
+            total_calls += remaining
+            total_cost += remaining * per_call
 
-    print(f"{mode} run: {len(rows)} questions")
+    already_calls = sum(
+        runs_for_topic(topic, mode, surface)
+        for _, topic in rows
+        for surface in PER_CALL_ESTIMATE
+    ) - total_calls
+
+    print(f"{mode} run: {len(rows)} questions"
+          + (f" ({already_calls} calls already done, showing remaining only)"
+             if already_calls else ""))
     for surface, calls in per_surface_calls.items():
         print(f"  {surface:12s} {calls:4d} calls  ~${calls * PER_CALL_ESTIMATE[surface]:.2f}")
     print(f"  {'TOTAL':12s} {total_calls:4d} calls  ~${total_cost:.2f}")

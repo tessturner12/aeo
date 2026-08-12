@@ -390,7 +390,20 @@ GROUP BY r.surface;
 - **Above ~5% pooled, or nonzero on one surface specifically** → the no-cooperation intervention list is unlikely to move the pooled number enough to reach significance even at N=10 — but a real per-surface effect could still be worth tracking on its own. Make a real decision here: accept a likely-null (pooled) result and frame the writeup accordingly, push N higher on this cluster (real but diminishing returns — see Appendix K's table), or revisit the "staying fully surprise" call, since site-access interventions are a materially stronger treatment than anything on the current list.
 - Remember the real uncertainty here is wide — Day 1's own data on this question type was n=8, all zero, with a 95% Wilson interval of [0%, 32%]. The real baseline checkpoint (n=100) will tell you something that small a sample couldn't.
 
-### Week 2 (Days 10-14ish): Make the changes, test topic only
+### Baseline results (actual, 2026-08-12)
+
+Real run, 650/650 calls, zero errors. Both `fixed_fee_positioning` (the test topic) and `general_recommendation` came back at a flat **0.0% on all three surfaces**:
+
+| Topic | Claude | OpenAI | Perplexity |
+|---|---|---|---|
+| `fixed_fee_positioning` | 0.0% (n=30) | 0.0% (n=100) | 0.0% (n=100) |
+| `general_recommendation` | 0.0% (n=24) | 0.0% (n=40) | 0.0% (n=40) |
+
+This is the good-detectability case per the gate above — proceed to Week 2 as planned. But the OpenAI zero specifically needed a second look, since Day 1's manual ChatGPT test *did* surface Mighty on the general "best accountant" question (3 of 5 questions, ChatGPT only).
+
+**Caveat, confirmed against real citation data, not assumed:** Day 1's own verdict already flagged that Mighty's ChatGPT visibility "rests almost entirely on one Reddit thread being cited repeatedly, not broad-based citation" — a thin, single-source signal. Checked the 256 real OpenAI baseline runs' `cited_urls`: only **1** cites any reddit.com URL, and only **4** cite anything from ContractorUK forums. The rig's `search_context_size="low"` setting (added 2026-08-11 purely as a cost lever, Appendix H/estimate_cost.py) pulls a narrower search result set than the full consumer ChatGPT app Day 1's manual test used — and when a brand's entire visibility depends on one specific forum thread surfacing, a narrower search mostly just doesn't retrieve it. Combined with Day 1 running only 2 samples per question (one lucky retrieval flips the read), the real n=100 zero is the more trustworthy number, not a sign Mighty "lost" visibility it had before.
+
+**Implication for interpreting `after`:** since `search_context_size="low"` applies identically at every checkpoint, the *relative* baseline→after comparison this project is actually measuring stays valid. But don't quote the absolute baseline/after percentages as "Mighty's AI visibility" in the deliverable without this caveat — they specifically measure visibility *under the rig's cost-optimized search depth*, which is narrower than what a real end user seeing the full ChatGPT product experiences. Same caveat family as the existing API-vs-consumer-app note (Part 0); state both together in the writeup.
 
 **Standing rule, not a per-engagement judgement call: no manufactured evidence, ever.** No sock-puppet accounts, no seeded comments, no paid covert mentions, no invented customer experiences. If a mention isn't true and useful on its own terms, it doesn't get posted — for this case study and for any future client work. Any forum or social mention of Mighty discloses, **in the post itself**, that the poster isn't a Mighty customer and this is part of a measurement experiment — not only in these project notes.
 

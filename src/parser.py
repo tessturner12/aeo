@@ -1,6 +1,13 @@
 # parser.py
 import json, os
+from pathlib import Path
+from dotenv import load_dotenv
 from anthropic import Anthropic
+
+# Load independently rather than relying on whoever imports this module
+# having already loaded .env first — that assumption broke a real run
+# on 2026-08-12 (see rig.py's load_dotenv comment and log.md).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 

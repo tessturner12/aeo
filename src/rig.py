@@ -2,15 +2,25 @@
 import os, sys, json, time, sqlite3, random
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Must run before importing parser: parser.py builds its own Anthropic
+# client at import time from os.getenv(...), so if that import happens
+# before the .env is loaded, the client is permanently constructed with
+# api_key=None for the life of the process — load_dotenv() running
+# afterward doesn't retroactively fix an already-built client. Real
+# incident 2026-08-12: this exact ordering bug let every parse_answer()
+# call fail for a whole baseline run while the underlying (paid) surface
+# calls it wrapped kept succeeding — cost was incurred with no data to
+# show for it. See log.md.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 import requests
 import yaml
-from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
 
 from parser import parse_answer
-
-load_dotenv()
 
 DB = Path(__file__).resolve().parent / "aeo.db"
 
@@ -192,25 +202,47 @@ SURFACES = {
 
 # ---------- MAIN LOOP ----------
 
+def already_done(conn, checkpoint):
+    """(question_id, surface, run_index) triples that already have a
+    successful row for this checkpoint. A prior run can stop partway
+    (billing cap, crashed API, killed process) and re-running the script
+    with no skip check would re-insert those rows on top of the originals —
+    runs has no unique constraint, so that silently inflates N for whatever
+    already completed. Only parse_ok=1 rows count as done; error rows are
+    retried."""
+    rows = conn.execute(
+        "SELECT question_id, surface, run_index FROM runs "
+        "WHERE checkpoint = ? AND parse_ok = 1",
+        (checkpoint,),
+    ).fetchall()
+    return set(rows)
+
+
 def run_cycle():
     conn = sqlite3.connect(DB)
     questions = conn.execute(
         "SELECT id, text, topic FROM questions WHERE is_product = 1"
     ).fetchall()
 
+    done = already_done(conn, MODE)
+
     total_calls = sum(
         runs_for_topic(topic, surface_name)
         for _, _, topic in questions
         for surface_name in SURFACES
     )
+    remaining_calls = total_calls - len(done)
     print(f"[{datetime.now()}] Starting {MODE} cycle: "
           f"{len(questions)} questions x {len(SURFACES)} surfaces, "
-          f"weighted runs -> {total_calls} calls")
+          f"weighted runs -> {total_calls} calls "
+          f"({len(done)} already done, {remaining_calls} remaining)")
 
     for qid, qtext, topic in questions:
         for surface_name, (fn, model) in SURFACES.items():
             n_runs = runs_for_topic(topic, surface_name)
             for run_index in range(n_runs):
+                if (qid, surface_name, run_index) in done:
+                    continue
                 try:
                     answer, urls = fn(qtext)
                     parsed = (parse_answer(answer, BRAND)
